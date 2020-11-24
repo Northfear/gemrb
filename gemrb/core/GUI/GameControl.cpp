@@ -330,7 +330,7 @@ void GameControl::DrawArrowMarker(const Region &screen, Point p, const Region &v
 	spr->release();
 }
 
-void GameControl::DrawTargetReticle(Point p, int size, bool animate, bool flash, bool actorSelected)
+void GameControl::DrawTargetReticle(Point p, int size, bool animate, bool flash, bool actorSelected) const
 {
 	// reticles are never drawn in cutscenes
 	if (GetScreenFlags()&SF_CUTSCENE)
@@ -1829,7 +1829,7 @@ bool GameControl::HandleActiveRegion(InfoPoint *trap, Actor * actor, Point &p)
 			//there. Here we have to check on the
 			//reset trap and deactivated flags
 			if (trap->Scripts[0]) {
-				GameControl *gc = core->GetGameControl();
+				const GameControl *gc = core->GetGameControl();
 				if (!(trap->Flags & TRAP_DEACTIVATED) && !(gc->GetDialogueFlags() & DF_FREEZE_SCRIPTS)) {
 					trap->AddTrigger(TriggerEntry(trigger_clicked, actor->GetGlobalID()));
 					actor->LastMarked = trap->GetGlobalID();
@@ -1996,12 +1996,12 @@ void GameControl::OnMouseUp(unsigned short x, unsigned short y, unsigned short B
 		}
 
 		if (Button & GEM_MB_ACTION) {
+			Actor *pc = core->GetFirstSelectedPC(false);
+			if (!pc) {
+				//this could be a non-PC
+				pc = game->selected[0];
+			}
 			if (!actor) {
-				Actor *pc = core->GetFirstSelectedPC(false);
-				if (!pc) {
-					//this could be a non-PC
-					pc = game->selected[0];
-				}
 				//add a check if you don't want some random monster handle doors and such
 				if (overDoor) {
 					HandleDoor(overDoor, pc);
@@ -2032,15 +2032,15 @@ void GameControl::OnMouseUp(unsigned short x, unsigned short y, unsigned short B
 						goto formation_handling;
 					}
 				}
-				//just a single actor, no formation
-				if (game->selected.size()==1
-					&& target_mode == TARGET_MODE_CAST
-					&& spellCount
-					&& (target_types&GA_POINT)) {
-					//the player is using an item or spell on the ground
-					TryToCast(pc, p);
-					goto formation_handling;
-				}
+			}
+			//just a single actor, no formation
+			if (game->selected.size()==1
+				&& target_mode == TARGET_MODE_CAST
+				&& spellCount
+				&& (target_types&GA_POINT)) {
+				//the player is using an item or spell on the ground
+				TryToCast(pc, p);
+				goto formation_handling;
 			}
 			doMove = (!actor && target_mode == TARGET_MODE_NONE);
 		} else if (Button & GEM_MB_MENU) {
@@ -2078,7 +2078,7 @@ formation_handling:
 
 void GameControl::ExecuteMovement(Actor *actor, unsigned short x, unsigned short y, bool createWaypoint)
 {
-	Game *game = core->GetGame();
+	const Game *game = core->GetGame();
 	Point p(x,y);
 	core->GetVideoDriver()->ConvertToGame(p.x, p.y);
 

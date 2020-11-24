@@ -497,6 +497,13 @@ void DisplayStringCore(Scriptable* const Sender, int Strref, int flags)
 		}
 	}
 
+	// PST does not echo verbal constants in the console, their strings
+	// actually contain development related identifying comments
+	// thus the console flag is unset.
+	if (core->HasFeature(GF_ONSCREEN_TEXT)) {
+		flags &= ~DS_CONSOLE;
+	}
+
 	if ((Strref != -1) && !soundRef[0]) {
 		StringBlock sb = core->strings->GetStringBlock( Strref );
 		memcpy(Sound, sb.Sound, sizeof(ieResRef) );
@@ -608,7 +615,8 @@ int SeeCore(Scriptable *Sender, const Trigger *parameters, int justlos)
 	//both are actors
 	if (CanSee(Sender, tar, true, flags) ) {
 		if (justlos) {
-			//TODO: maybe set the object references here too
+			//TODO: maybe set the other object references here too
+			Sender->LastTrigger = tar->GetGlobalID();
 			return 1;
 		}
 		// NOTE: Detect supposedly doesn't set LastMarked — disable on GA_DETECT if needed
@@ -618,6 +626,7 @@ int SeeCore(Scriptable *Sender, const Trigger *parameters, int justlos)
 			snd->LastSeen = tar->GetGlobalID();
 			snd->LastMarked = tar->GetGlobalID();
 		}
+		Sender->LastTrigger = tar->GetGlobalID();
 		return 1;
 	}
 	return 0;
@@ -2208,7 +2217,7 @@ ieDword CheckVariable(const Scriptable *Sender, const char *VarName, bool *valid
 		ScriptDebugLog(ID_VARIABLES, "CheckVariable %s: %d", VarName, value);
 		return value;
 	}
-	Game *game = core->GetGame();
+	const Game *game = core->GetGame();
 	if (HasKaputz && !stricmp(newVarName,"KAPUTZ") ) {
 		game->kaputz->Lookup( poi, value );
 		ScriptDebugLog(ID_VARIABLES, "CheckVariable %s: %d", VarName, value);
@@ -2251,7 +2260,7 @@ ieDword CheckVariable(const Scriptable *Sender, const char *VarName, const char 
 		ScriptDebugLog(ID_VARIABLES, "CheckVariable %s%s: %d", Context, VarName, value);
 		return value;
 	}
-	Game *game = core->GetGame();
+	const Game *game = core->GetGame();
 	if (HasKaputz && !stricmp(newVarName,"KAPUTZ") ) {
 		game->kaputz->Lookup( VarName, value );
 		ScriptDebugLog(ID_VARIABLES, "CheckVariable %s%s: %d", Context, VarName, value);
@@ -2280,7 +2289,7 @@ bool VariableExists(Scriptable *Sender, const char *VarName, const char *Context
 	ieDword value = 0;
 	char newVarName[8];
 	strlcpy(newVarName, Context, 7);
-	Game *game = core->GetGame();
+	const Game *game = core->GetGame();
 
 	if (Sender->GetCurrentArea()->locals->Lookup(VarName, value)) {
 		return true;

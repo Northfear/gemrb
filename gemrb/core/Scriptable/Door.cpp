@@ -242,7 +242,7 @@ bool Door::BlockedOpen(int Open, int ForceOpen) const
 	return blocked;
 }
 
-void Door::SetDoorOpen(int Open, int playsound, ieDword ID)
+void Door::SetDoorOpen(int Open, int playsound, ieDword ID, bool addTrigger)
 {
 	if (playsound) {
 		//the door cannot be blocked when opening,
@@ -256,17 +256,19 @@ void Door::SetDoorOpen(int Open, int playsound, ieDword ID)
 		area->JumpActors(true);
 	}
 	if (Open) {
-		if (Trapped) {
-			AddTrigger(TriggerEntry(trigger_opened, ID));
-		} else {
-			AddTrigger(TriggerEntry(trigger_harmlessopened, ID));
+		if (addTrigger) {
+			if (Trapped) {
+				AddTrigger(TriggerEntry(trigger_opened, ID));
+			} else {
+				AddTrigger(TriggerEntry(trigger_harmlessopened, ID));
+			}
 		}
 
 		// in PS:T, opening a door does not unlock it
 		if (!core->HasFeature(GF_REVERSE_DOOR)) {
 			SetDoorLocked(false,playsound);
 		}
-	} else {
+	} else if (addTrigger) {
 		if (Trapped) {
 			AddTrigger(TriggerEntry(trigger_closed, ID));
 		} else {
@@ -368,7 +370,7 @@ void Highlightable::TryDisarm(const Actor *actor)
 		}
 		displaymsg->DisplayConstantStringName(STR_DISARM_DONE, DMC_LIGHTGREY, actor);
 		int xp = actor->CalculateExperience(XP_DISARM, actor->GetXPLevel(1));
-		Game *game = core->GetGame();
+		const Game *game = core->GetGame();
 		game->ShareXP(xp, SX_DIVIDE);
 		core->GetGameControl()->ResetTargetMode();
 		core->PlaySound(DS_DISARMED, SFX_CHAN_HITS);
@@ -419,7 +421,7 @@ void Door::TryPickLock(const Actor *actor)
 	core->PlaySound(DS_PICKLOCK, SFX_CHAN_HITS);
 	ImmediateEvent();
 	int xp = actor->CalculateExperience(XP_LOCKPICK, actor->GetXPLevel(1));
-	Game *game = core->GetGame();
+	const Game *game = core->GetGame();
 	game->ShareXP(xp, SX_DIVIDE);
 }
 

@@ -63,8 +63,8 @@ static EffectRef fx_spell_resistance_ref = { "SpellResistance", -1 };
 static EffectRef fx_protection_from_display_string_ref = { "Protection:String", -1 };
 static EffectRef fx_variable_ref = { "Variable:StoreLocalVariable", -1 };
 
-//immunity effects
-static EffectRef fx_level_immunity_ref = { "Protection:Spelllevel", -1 };
+// immunity effects (setters of IE_IMMUNITY)
+static EffectRef fx_level_immunity_ref = { "Protection:SpellLevel", -1 };
 static EffectRef fx_opcode_immunity_ref = { "Protection:Opcode", -1 }; //bg2
 static EffectRef fx_opcode_immunity2_ref = { "Protection:Opcode2", -1 };//iwd
 static EffectRef fx_spell_immunity_ref = { "Protection:Spell", -1 }; //bg2
@@ -1324,11 +1324,11 @@ int EffectQueue::ApplyEffect(Actor* target, Effect* fx, ieDword first_apply, ieD
 		res=fn( Owner, target, fx );
 		fx->FirstApply = 0;
 
-		//if there is no owner, we assume it is the target
 		switch( res ) {
 			case FX_APPLIED:
 				//normal effect with duration
 				break;
+			case FX_ABORT:
 			case FX_NOT_APPLIED:
 				//instant effect, pending removal
 				//for example, a damage effect
@@ -1346,8 +1346,6 @@ int EffectQueue::ApplyEffect(Actor* target, Effect* fx, ieDword first_apply, ieD
 				if( fx->TimingMode == FX_DURATION_INSTANT_PERMANENT ) {
 					fx->TimingMode = FX_DURATION_JUST_EXPIRED;
 				}
-				break;
-			case FX_ABORT:
 				break;
 			default:
 				error("EffectQueue", "Unknown effect result '%x', aborting ...\n", res);

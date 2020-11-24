@@ -269,6 +269,8 @@ Interface::Interface()
 #else // HAVE_ICONV
 	SystemEncoding = nullptr;
 #endif// HAVE_ICONV
+#elif defined(__MORPHOS__)
+	SystemEncoding = nullptr;
 #else // WIN32
 	SystemEncoding = nl_langinfo(CODESET);
 #endif // WIN32
@@ -1077,7 +1079,7 @@ int Interface::LoadSprites()
 
 	Log(MESSAGE, "Core", "Loading Cursors...");
 	AnimationFactory* anim;
-	anim = (AnimationFactory*) gamedata->GetFactoryResource("cursors", IE_BAM_CLASS_ID);
+	anim = (AnimationFactory*) gamedata->GetFactoryResource(MainCursorsImage, IE_BAM_CLASS_ID);
 	if (anim)
 	{
 		CursorCount = anim->GetCycleCount();
@@ -2337,7 +2339,8 @@ bool Interface::LoadGemRBINI()
 	s = ini->GetKeyAsString( "resources", name, NULL ); \
 	resref = s; s = NULL;
 
-	ASSIGN_RESREF(CursorBam, "CursorBAM"); //console cursor
+	ASSIGN_RESREF(MainCursorsImage, "MainCursorsImage");
+	ASSIGN_RESREF(TextCursorBam, "TextCursorBAM"); //console cursor
 	ASSIGN_RESREF(ScrollCursorBam, "ScrollCursorBAM");
 	ASSIGN_RESREF(ButtonFontResRef, "ButtonFont");
 	ASSIGN_RESREF(TooltipFontResRef, "TooltipFont");
@@ -2540,6 +2543,7 @@ Actor *Interface::SummonCreature(const ieResRef resource, const ieResRef vvcres,
 	//maximum number of monsters summoned
 	int cnt=10;
 	Actor * ab = NULL;
+	Actor *summoner = nullptr;
 
 	Map *map;
 	if (target) {
@@ -2550,6 +2554,10 @@ Actor *Interface::SummonCreature(const ieResRef resource, const ieResRef vvcres,
 		map = game->GetCurrentArea();
 	}
 	if (!map) return ab;
+
+	if (Owner && Owner->Type == ST_ACTOR) {
+		summoner = (Actor *) Owner;
+	}
 
 	while (cnt--) {
 		Actor *tmp = gamedata->GetCreature(resource);
@@ -2562,10 +2570,9 @@ Actor *Interface::SummonCreature(const ieResRef resource, const ieResRef vvcres,
 		//non actors and neutrals can summon as much as they want
 		ieDword flag = GA_NO_DEAD|GA_NO_ALLY|GA_NO_ENEMY;
 
-		if (Owner && Owner->Type==ST_ACTOR) {
+		if (summoner) {
 			tmp->LastSummoner = Owner->GetGlobalID();
-			Actor *owner = (Actor *) Owner;
-			ieDword ea = owner->GetStat(IE_EA);
+			ieDword ea = summoner->GetStat(IE_EA);
 			if (ea<=EA_GOODCUTOFF) {
 				flag &= ~GA_NO_ALLY;
 			} else if (ea>=EA_EVILCUTOFF) {
@@ -2580,9 +2587,10 @@ Actor *Interface::SummonCreature(const ieResRef resource, const ieResRef vvcres,
 
 		// only allow up to the summoning limit of new summoned creatures
 		// the summoned creatures have a special IE_SEX
+		// but also only limit the party, so spore colonies can reproduce more
 		ieDword sex = tmp->GetStat(IE_SEX);
 		int limit = gamedata->GetSummoningLimit(sex);
-		if (limit && sexmod && map->CountSummons(flag, sex)>=limit) {
+		if (limit && sexmod && map->CountSummons(flag, sex) >= limit && summoner && summoner->InParty) {
 			//summoning limit reached
 			displaymsg->DisplayConstantString(STR_SUMMONINGLIMIT, DMC_WHITE);
 			delete tmp;
@@ -2595,8 +2603,8 @@ Actor *Interface::SummonCreature(const ieResRef resource, const ieResRef vvcres,
 		int enemyally;
 
 		if (eamod==EAM_SOURCEALLY || eamod==EAM_SOURCEENEMY) {
-			if (Owner && Owner->Type==ST_ACTOR) {
-				enemyally = ((Actor *) Owner)->GetStat(IE_EA)>EA_GOODCUTOFF;
+			if (summoner) {
+				enemyally = summoner->GetStat(IE_EA) > EA_GOODCUTOFF;
 			} else {
 				enemyally = true;
 			}
@@ -2635,6 +2643,11 @@ Actor *Interface::SummonCreature(const ieResRef resource, const ieResRef vvcres,
 		map->AddActor(ab, true);
 		ab->SetPosition(position, true, 0);
 		ab->RefreshEffects(NULL);
+
+		// guessing, since this trigger was unused in the originals — likely duplicating LastSummoner
+		if (Owner) {
+			Owner->AddTrigger(TriggerEntry(trigger_summoned, ab->GetGlobalID()));
+		}
 
 		if (vvcres[0]) {
 			ScriptedAnimation* vvc = gamedata->GetScriptedAnimation(vvcres, false);
@@ -3808,7 +3821,7 @@ void Interface::SetCutSceneMode(bool active)
 /** returns true if in dialogue or cutscene */
 bool Interface::InCutSceneMode() const
 {
-	GameControl *gc = GetGameControl();
+	const GameControl *gc = GetGameControl();
 	if (!gc || (gc->GetDialogueFlags()&DF_IN_DIALOG) || (gc->GetScreenFlags()&(SF_DISABLEMOUSE|SF_CUTSCENE))) {
 		return true;
 	}
@@ -5037,7 +5050,7 @@ Actor *Interface::GetFirstSelectedActor()
 //this is used only for the console
 Sprite2D *Interface::GetCursorSprite()
 {
-	Sprite2D *spr = gamedata->GetBAMSprite(CursorBam, 0, 0);
+	Sprite2D *spr = gamedata->GetBAMSprite(TextCursorBam, 0, 0);
 	if (spr)
 	{
 		if(HasFeature(GF_OVERRIDE_CURSORPOS))
@@ -5461,7 +5474,7 @@ int Interface::GetReputationMod(int column) const
 
 PauseSetting Interface::TogglePause()
 {
-	GameControl *gc = GetGameControl();
+	const GameControl *gc = GetGameControl();
 	if (!gc) return PAUSE_OFF;
 	PauseSetting pause = (PauseSetting)(~gc->GetDialogueFlags()&DF_FREEZE_SCRIPTS);
 	if (SetPause(pause)) return pause;

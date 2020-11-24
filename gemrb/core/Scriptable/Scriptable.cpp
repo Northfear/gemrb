@@ -375,7 +375,7 @@ void Scriptable::TickScripting()
 
 void Scriptable::ExecuteScript(int scriptCount)
 {
-	GameControl *gc = core->GetGameControl();
+	const GameControl *gc = core->GetGameControl();
 
 	// area scripts still run for at least the current area, in bg1 (see ar2631, confirmed by testing)
 	// but not in bg2 (kill Abazigal in ar6005)
@@ -692,12 +692,24 @@ void Scriptable::AddTrigger(TriggerEntry trigger)
 {
 	triggers.push_back(trigger);
 	ImmediateEvent();
+	SetLastTrigger(trigger.triggerID, trigger.param1);
+}
 
-	assert(trigger.triggerID < MAX_TRIGGERS);
-	if (triggerflags[trigger.triggerID] & TF_SAVED) {
+// plenty of triggers in svitrobj don't send trigger messages and so never see the code in AddTrigger
+void Scriptable::SetLastTrigger(ieDword triggerID, ieDword globalID)
+{
+	assert(triggerID < MAX_TRIGGERS);
+	if (triggerflags[triggerID] & TF_SAVED) {
 		//TODO: if LastTrigger is still overwritten by script action blocks, store this in a separate field and copy it back when the block ends
-		//Log(WARNING, "Scriptable", "%s: Added LastTrigger: %d for trigger %d\n", scriptName, trigger.param1, trigger.triggerID);
-		LastTrigger = trigger.param1;
+		const char *name = "none";
+		if (area) {
+			Scriptable *scr = area->GetScriptableByGlobalID(globalID);
+			if (scr) {
+				name = scr->GetScriptName();
+			}
+		}
+		ScriptDebugLog(ID_TRIGGERS, "Scriptable", "%s: Added LastTrigger: %d (%s) for trigger %d\n", scriptName, globalID, name, triggerID);
+		LastTrigger = globalID;
 	}
 }
 
@@ -1908,7 +1920,9 @@ bool Highlightable::TriggerTrap(int /*skill*/, ieDword ID)
 
 	// the second part is a hack to deal with bg2's ar1401 lava floor trap ("muck"), which doesn't have the repeating bit set
 	// should we always send Entered instead, also when !Trapped? Does not appear so, see history of InfoPoint::TriggerTrap
-	if (!TrapResets() && (TrapDetectionDiff && TrapRemovalDiff)) {
+	if (TrapResets()) {
+		AddTrigger(TriggerEntry(trigger_reset, GetGlobalID()));
+	} else if (TrapDetectionDiff && TrapRemovalDiff) {
 		Trapped = false;
 	}
 	return true;
@@ -1919,7 +1933,7 @@ bool Highlightable::TryUnlock(Actor *actor, bool removekey) {
 	Actor *haskey = NULL;
 
 	if (Key && actor->InParty) {
-		Game *game = core->GetGame();
+		const Game *game = core->GetGame();
 		//allow unlock when the key is on any partymember
 		for (int idx = 0; idx < game->GetPartySize(false); idx++) {
 			Actor *pc = game->FindPC(idx + 1);
