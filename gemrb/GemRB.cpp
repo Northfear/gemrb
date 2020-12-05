@@ -38,7 +38,7 @@
 #include <psp2/apputil.h> 
 
 // allocating memory for application on Vita
-int _newlib_heap_size_user = 344 * 1024 * 1024;
+int _newlib_heap_size_user = 340 * 1024 * 1024;
 char *vitaArgv[3];
 char configPath[25];
 
