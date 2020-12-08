@@ -6,9 +6,9 @@ SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${VITA_FLAGS}")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${VITA_FLAGS}")
 SET(VITA_LIBRARIES_SDL_COMMON "-lvorbis -logg -lmikmod -lSceAudio_stub -lSceCtrl_stub -lSceGxm_stub -lSceGxmInternalForVsh_stub -lSceHid_stub \
 								-lSceDisplay_stub -lSceDisplayUser_stub -lSceSysmodule_stub -lSceAppMgrUser_stub -lSceCommonDialog_stub \
-								-lScePower_stub -lSceAppUtil_stub -lSceSharedFb_stub")
+								-lScePower_stub -lSceAppUtil_stub -lSceSharedFb_stub -lSceTouch_stub")
 SET(VITA_LIBRARIES_SDL "${VITA_LIBRARIES_SDL_COMMON}")
-SET(VITA_LIBRARIES_SDL2 "-lFLAC -lSceTouch_stub ${VITA_LIBRARIES_SDL_COMMON}")
+SET(VITA_LIBRARIES_SDL2 "-lFLAC -lmpg123 -lpib -lSceMotion_stub ${VITA_LIBRARIES_SDL_COMMON}")
 
 SET(DEFAULT_CACHE_DIR "ux0:data/GemRB/Cache2/")
 SET(DATA_DIR "ux0:data/GemRB/")
