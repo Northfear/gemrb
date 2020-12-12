@@ -34,7 +34,11 @@
 # will then execute
 # GemRB.GetTableValue(5, "Row", "Col")
 
-from types import MethodType
+#from types import MethodType
+class _C:
+    def _m(self): pass
+_x = _C()
+MethodType = type(_x._m)
 
 def MethodAttributeError(f):
 	def handler(*args, **kwargs):
