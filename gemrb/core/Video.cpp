@@ -212,10 +212,10 @@ bool Video::GetFullscreenMode() const
 	return fullscreen;
 }
 
-void Video::BlitSprite(const Holder<Sprite2D> spr, int x, int y,
-								const Region* clip)
+void Video::BlitSprite(const Holder<Sprite2D> spr, Point p, const Region* clip)
 {
-	Region dst(x - spr->Frame.x, y - spr->Frame.y, spr->Frame.w, spr->Frame.h);
+	p -= spr->Frame.Origin();
+	Region dst(p, spr->Frame.Dimensions());
 	Region fClip = ClippedDrawingRect(dst, clip);
 
 	if (fClip.Dimensions().IsEmpty()) {
@@ -261,40 +261,6 @@ void Video::BlitGameSpriteWithPalette(Holder<Sprite2D> spr, PaletteHolder pal, i
 	} else {
 		BlitGameSprite(spr, x, y, flags, tint, clip);
 	}
-}
-
-//Sprite conversion, creation
-Holder<Sprite2D> Video::CreateAlpha( const Holder<Sprite2D> sprite)
-{
-	if (!sprite)
-		return 0;
-
-	unsigned int *pixels = (unsigned int *) malloc (sprite->Frame.w * sprite->Frame.h * 4);
-	int i=0;
-	for (int y = 0; y < sprite->Frame.h; y++) {
-		for (int x = 0; x < sprite->Frame.w; x++) {
-			int sum = 0;
-			int cnt = 0;
-			for (int xx=x-3;xx<=x+3;xx++) {
-				for(int yy=y-3;yy<=y+3;yy++) {
-					if (((xx==x-3) || (xx==x+3)) &&
-					    ((yy==y-3) || (yy==y+3))) continue;
-					if (xx < 0 || xx >= sprite->Frame.w) continue;
-					if (yy < 0 || yy >= sprite->Frame.h) continue;
-					cnt++;
-					if (sprite->IsPixelTransparent(Point(xx, yy)))
-						sum++;
-				}
-			}
-			int tmp=255 - (sum * 255 / cnt);
-			tmp = tmp * tmp / 255;
-			pixels[i++]=tmp;
-		}
-	}
-	Holder<Sprite2D> newspr = CreateSprite(sprite->Frame, 32, 0xFF000000,
-											0x00FF0000, 0x0000FF00, 0x000000FF, pixels);
-	newspr->renderFlags = sprite->renderFlags;
-	return newspr;
 }
 
 Holder<Sprite2D> Video::SpriteScaleDown( const Holder<Sprite2D> sprite, unsigned int ratio )
@@ -397,7 +363,7 @@ Color ApplyFlagsForColor(const Color& inCol, uint32_t& flags)
 	}
 
 	if (flags & BLIT_COLOR_MOD) {
-		// FIXME: we would need another parameter for tinting the color
+		flags |= BLIT_MULTIPLY;
 	}
 
 	// clear handled flags

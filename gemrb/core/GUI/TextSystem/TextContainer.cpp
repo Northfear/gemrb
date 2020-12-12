@@ -247,7 +247,7 @@ void TextSpan::DrawContentsInRegions(const LayoutRegions& rgns, const Point& off
 		}
 		// FIXME: layout assumes left alignment, so alignment is mostly broken
 		// we only use it for TextEdit tho which is single line and therefore works as long as the text ends in a newline
-		charsPrinted += printFont->Print(drawRect, text.substr(charsPrinted), printPalette.get(), Alignment);
+		charsPrinted += printFont->Print(drawRect, text.substr(charsPrinted), printPalette, Alignment);
 		if (core->InDebugMode(ID_TEXT)) {
 			core->GetVideoDriver()->DrawRect(drawRect, ColorWhite, false);
 		}
@@ -266,7 +266,7 @@ void ImageSpan::DrawContentsInRegions(const LayoutRegions& rgns, const Point& of
 	Region r = rgns.front()->region;
 	r.x += offset.x;
 	r.y += offset.y;
-	core->GetVideoDriver()->BlitSprite(image, r.x, r.y, &r);
+	core->GetVideoDriver()->BlitSprite(image, r.Origin(), &r);
 }
 
 ContentContainer::ContentContainer(const Region& frame)
@@ -294,6 +294,33 @@ void ContentContainer::SetMargin(ieByte top, ieByte right, ieByte bottom, ieByte
 	SetMargin(Margin(top, right, bottom, left));
 }
 
+void ContentContainer::WillDraw(const Region& drawFrame, const Region& clip)
+{
+	Region sc = clip;
+	
+	int diff = clip.x - drawFrame.x;
+	if (diff < margin.left) {
+		sc.x += margin.left - diff;
+		sc.w -= margin.left - diff;
+	}
+	
+	diff = (drawFrame.x + drawFrame.w) - (clip.x + clip.w);
+	if (diff < margin.right) {
+		sc.w += margin.right - diff;
+	}
+	
+	// TODO: if we ever support horzontal scrollbars these will need to be fixed
+	sc.y += margin.top;
+	sc.h -= margin.top + margin.bottom;
+
+	core->GetVideoDriver()->SetScreenClip(&sc);
+}
+
+void ContentContainer::DidDraw(const Region& /*drawFrame*/, const Region& clip)
+{
+	core->GetVideoDriver()->SetScreenClip(&clip);
+}
+
 void ContentContainer::DrawSelf(Region drawFrame, const Region& clip)
 {
 	Video* video = core->GetVideoDriver();
@@ -305,13 +332,6 @@ void ContentContainer::DrawSelf(Region drawFrame, const Region& clip)
 	if (layout.empty()) return;
 	Point dp = drawFrame.Origin() + Point(margin.left, margin.top);
 	
-	Region sc = video->GetScreenClip();
-	sc.x += margin.left;
-	sc.y += margin.top;
-	sc.w -= margin.left + margin.right;
-	sc.h -= margin.top + margin.bottom;
-	video->SetScreenClip(&sc);
-
 	ContentLayout::const_iterator it = layout.begin();
 	for (; it != layout.end(); ++it) {
 		const Layout& l = *it;
@@ -321,7 +341,7 @@ void ContentContainer::DrawSelf(Region drawFrame, const Region& clip)
 	}
 }
 
-void ContentContainer::DrawContents(const Layout& layout, const Point& point)
+void ContentContainer::DrawContents(const Layout& layout, Point point)
 {
 	layout.content->DrawContentsInRegions(layout.regions, point);
 }
@@ -690,7 +710,7 @@ void TextContainer::DrawSelf(Region drawFrame, const Region& clip)
 
 	if (layout.empty() && Editable()) {
 		Video* video = core->GetVideoDriver();
-		Region sc = video->GetScreenClip();
+		const Region& sc = video->GetScreenClip();
 		video->SetScreenClip(NULL);
 
 		Holder<Sprite2D> cursor = core->GetCursorSprite();
@@ -714,7 +734,7 @@ TextContainer::FindCursorRegion(const Layout& layout)
 	return end;
 }
 
-void TextContainer::DrawContents(const Layout& layout, const Point& dp)
+void TextContainer::DrawContents(const Layout& layout, Point dp)
 {	
 	ContentContainer::DrawContents(layout, dp);
 
@@ -736,11 +756,12 @@ void TextContainer::DrawContents(const Layout& layout, const Point& dp)
 		}
 
 		Video* video = core->GetVideoDriver();
-		Region sc = video->GetScreenClip();
+		const Region& sc = video->GetScreenClip();
 		video->SetScreenClip(NULL);
 
 		Holder<Sprite2D> cursor = core->GetCursorSprite();
-		video->BlitSprite(cursor, cursorPoint.x + dp.x, cursorPoint.y + dp.y + cursor->Frame.y);
+		dp.y += cursor->Frame.y;
+		video->BlitSprite(cursor, cursorPoint + dp);
 
 		video->SetScreenClip(&sc);
 	}

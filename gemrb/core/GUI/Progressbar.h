@@ -54,27 +54,22 @@ public:
 	Progressbar(const Region& frame, unsigned short KnobStepsCount);
 	~Progressbar();
 
-	bool IsOpaque() const { return BackGround && BackGround->HasTransparency() == false; }
+	bool IsOpaque() const;
 
-	/** Sets the background images */
-	void SetImage(Holder<Sprite2D> img, Holder<Sprite2D> img2);
+	void SetImages(Holder<Sprite2D> bg, Holder<Sprite2D> cap);
 	/** Sets a bam resource for progressbar */
 	void SetAnimation(Animation *arg);
-	/** Sets a mos resource for progressbar cap */
-	void SetBarCap(Holder<Sprite2D> img3);
 	/** Sets the mos coordinates for the progressbar filler mos/cap */
-	void SetSliderPos(int x, int y, int x2, int y2);
+	void SetSliderPos(const Point& knob, const Point& cap);
 	/** Refreshes a progressbar which is associated with VariableName */
 	void UpdateState(unsigned int Sum);
 
 private: // Private attributes
-	/** BackGround Images. If smaller than the Control Size, the image will be tiled. */
-	Holder<Sprite2D> BackGround;
 	Holder<Sprite2D> BackGround2; //mos resource for the filling of the bar
 	/** Knob Steps Count */
 	unsigned int KnobStepsCount;
-	int KnobXPos, KnobYPos; //relative coordinates for Background2
-	int CapXPos, CapYPos; //relative coordinates for PBarCap
+	Point KnobPos; //relative coordinates for Background2
+	Point CapPos; //relative coordinates for PBarCap
 
 	/** The mos for the progressbar cap (linear progressbar) */
 	Holder<Sprite2D> PBarCap;

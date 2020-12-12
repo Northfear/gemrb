@@ -218,12 +218,15 @@ protected:
 	const Layout* LayoutAtPoint(const Point& p) const;
 
 	void DrawSelf(Region drawFrame, const Region& clip);
-	virtual void DrawContents(const Layout& layout, const Point& point);
+	virtual void DrawContents(const Layout& layout, Point point);
 	
 	void SizeChanged(const Size& oldSize);
 
 private:
 	virtual void ContentRemoved(const Content* /*content*/) {};
+	
+	void WillDraw(const Region& /*drawFrame*/, const Region& /*clip*/);
+	void DidDraw(const Region& /*drawFrame*/, const Region& /*clip*/);
 };
 
 // TextContainers can hold any content, but they represent a string of text that is divided into TextSpans
@@ -257,7 +260,7 @@ private:
 	void OnTextInput(const TextEvent& /*te*/);
 
 	void DrawSelf(Region drawFrame, const Region& clip);
-	virtual void DrawContents(const Layout& layout, const Point& point);
+	virtual void DrawContents(const Layout& layout, Point point);
 
 	virtual bool Editable() const { return IsReceivingEvents(); }
 	void SizeChanged(const Size& oldSize);

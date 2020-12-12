@@ -198,8 +198,12 @@ public:
 
 	virtual void BlitTile(const Holder<Sprite2D> spr, int x, int y, const Region* clip,
 						  uint32_t flags, const Color* tint = NULL) = 0;
-	void BlitSprite(const Holder<Sprite2D> spr, int x, int y,
+	
+	void BlitSprite(const Holder<Sprite2D> spr, Point p,
 					const Region* clip = NULL);
+
+	void BlitSprite(const Holder<Sprite2D> spr, int x, int y,
+					const Region* clip = NULL) { return BlitSprite(spr, Point(x, y), clip); }
 	virtual void BlitSprite(const Holder<Sprite2D> spr, const Region& src, Region dst) = 0;
 
 	// Note: Tint cannot be constified, because it is modified locally
@@ -241,8 +245,6 @@ public:
 	void SetEventMgr(EventMgr* evnt);
 	/** Flips sprite, returns new sprite */
 	Holder<Sprite2D> MirrorSprite(const Holder<Sprite2D> sprite, uint32_t flags, bool MirrorAnchor);
-	/** Duplicates and transforms sprite to have an alpha channel */
-	Holder<Sprite2D> CreateAlpha(const Holder<Sprite2D> sprite);
 
 	/** Sets Clip Rectangle */
 	void SetScreenClip(const Region* clip);

@@ -419,7 +419,7 @@ void GameControl::DrawTargetReticle(const Movable* target, const Point& p) const
 	DrawTargetReticle(size, color, p);
 }
 	
-void GameControl::WillDraw()
+void GameControl::WillDraw(const Region& /*drawFrame*/, const Region& /*clip*/)
 {
 	UpdateCursor();
 
@@ -644,7 +644,7 @@ void GameControl::DrawSelf(Region screen, const Region& /*clip*/)
 	// Draw lightmap
 	if (DebugFlags & DEBUG_SHOW_LIGHTMAP) {
 		Holder<Sprite2D> spr = area->LightMap->GetSprite2D();
-		video->BlitSprite(spr, 0, 0);
+		video->BlitSprite(spr, Point());
 		Region point(gameMousePos.x / 16, gameMousePos.y / 12, 2, 2);
 		video->DrawRect(point, ColorRed);
 	}
@@ -2164,7 +2164,6 @@ bool GameControl::OnMouseUp(const MouseEvent& me, unsigned short Mod)
 			MoveViewportTo(p, true);
 
 		// handle actions
-		// FIXME: is this the right place to do this? seems ok.
 		if (target_mode == TARGET_MODE_NONE && lastActorID) {
 			switch (lastCursor & ~IE_CURSOR_GRAY) {
 				case IE_CURSOR_TALK:

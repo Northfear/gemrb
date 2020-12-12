@@ -32,20 +32,14 @@
 
 #include <vector>
 
-#if SDL_VERSION_ATLEAST(1,3,0)
-#define SDLKey SDL_Keycode
-#define SDL_JoyAxisEvent SDL_ControllerAxisEvent
-#define SDL_JoyButtonEvent SDL_ControllerButtonEvent
-#else
-typedef Sint32 SDL_Keycode;
-#endif
-
 namespace GemRB {
 
 #if SDL_VERSION_ATLEAST(1,3,0)
 #define SDL_SRCCOLORKEY SDL_TRUE
 #define SDL_SRCALPHA 0
 #define SDLKey SDL_Keycode
+#define SDL_JoyAxisEvent SDL_ControllerAxisEvent
+#define SDL_JoyButtonEvent SDL_ControllerButtonEvent
 #define SDLK_SCROLLOCK SDLK_SCROLLLOCK
 #define SDLK_KP1 SDLK_KP_1
 #define SDLK_KP2 SDLK_KP_2
@@ -109,7 +103,7 @@ protected:
 	virtual inline vid_buf_t* CurrentStencilBuffer() const=0;
 	Region CurrentRenderClip() const;
 	
-	void RenderSpriteVersion(const SDLSurfaceSprite2D* spr, uint32_t renderflags, const Color* = NULL);
+	void RenderSpriteVersion(const SDLSurfaceSprite2D* spr, uint32_t& renderflags, const Color* = NULL);
 
 	virtual void BlitSpriteBAMClipped(const Holder<Sprite2D> spr, const Region& src, const Region& dst, uint32_t flags = 0, const Color* tint = NULL)=0;
 	virtual void BlitSpriteNativeClipped(const sprite_t* spr, const SDL_Rect& src, const SDL_Rect& dst, uint32_t flags = 0, const SDL_Color* tint = NULL)=0;

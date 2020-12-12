@@ -79,7 +79,7 @@ static Point **VisibilityMasks=NULL;
 
 static bool PathFinderInited = false;
 static Variables Spawns;
-static int LargeFog;
+static bool LargeFog;
 static TerrainSounds *terrainsounds=NULL;
 static int tsndcount = -1;
 static ieDword oldGameTime = 0;
@@ -910,191 +910,172 @@ void Map::DrawFogOfWar(ieByte* explored_mask, ieByte* visible_mask, const Region
 	// Ratio of bg tile size and fog tile size
 	constexpr int CELL_RATIO = 2;
 
-	// viewport - pos & size of the control
-	Size size(TMap->XCellCount * CELL_RATIO, TMap->YCellCount * CELL_RATIO);
-	
-	if (LargeFog) {
-		size.w++;
-		size.h++;
-	}
+	// size for explored_mask and visible_mask
+	const Size mapSize(TMap->XCellCount * CELL_RATIO + LargeFog, TMap->YCellCount * CELL_RATIO + LargeFog);
 
-	int sx = ( vp.x ) / CELL_SIZE;
-	int sy = ( vp.y ) / CELL_SIZE;
-	int dx = sx + vp.w / CELL_SIZE + 2;
-	int dy = sy + vp.h / CELL_SIZE + 2;
-	int x0 = sx * CELL_SIZE - vp.x;
-	int y0 = sy * CELL_SIZE - vp.y;
-	if (LargeFog) {
-		x0 -= CELL_SIZE / 2;
-		y0 -= CELL_SIZE / 2;
-		dx++;
-		dy++;
-	}
+	const int sx = ( vp.x ) / CELL_SIZE;
+	const int sy = ( vp.y ) / CELL_SIZE;
+	const int dx = (sx + vp.w / CELL_SIZE + 2) + LargeFog;
+	const int dy = (sy + vp.h / CELL_SIZE + 2) + LargeFog;
+	const int x0 = (sx * CELL_SIZE - vp.x) - (LargeFog * CELL_SIZE / 2);
+	const int y0 = (sy * CELL_SIZE - vp.y) - (LargeFog * CELL_SIZE / 2);
+		
+	Video* vid = core->GetVideoDriver();
 	
 	// Returns true if map at (x;y) was explored, else false.
 	// Points outside map are always considered as explored
-	auto MaskHit = [&size](int x, int y, ieByte* mask)
+	auto MaskHit = [&mapSize](int x, int y, ieByte* mask)
 	{
-		if (x <= 0 || x >= (size.w - 1) || y <= 0 || y >= (size.h - 1)) {
+		if (x <= 0 || x >= (mapSize.w - 1) || y <= 0 || y >= (mapSize.h - 1)) {
 			// edges are always foggy
 			return false;
 		}
 		
 		if (mask == nullptr) return true;
 
-		div_t res = div(size.w * y + x, 8);
+		div_t res = div(mapSize.w * y + x, 8);
 		return bool(mask[res.quot] & (1 << res.rem));
 	};
 	
-	auto IsExplored = [&](int x, int y) {
+	auto IsExplored = [=](int x, int y) {
 		return MaskHit(x, y, explored_mask);
 	};
 	
-	auto IsVisible = [&](int x, int y) {
+	auto IsVisible = [=](int x, int y) {
 		return MaskHit(x, y, visible_mask);
 	};
+	
+	auto ConvertPointToScreen = [=](int x, int y) {
+		x = (x - sx) * CELL_SIZE + x0;
+		y = (y - sy) * CELL_SIZE + y0;
+		return Point(x, y);
+	};
+	
+	auto FillFog = [=](int x, int y, int count) {
+		Region r(ConvertPointToScreen(x, y), Size(CELL_SIZE * count, CELL_SIZE));
+		vid->DrawRect(r, ColorBlack, true);
+	};
+	
+	auto Fill = [=](int x, int y, uint8_t dirs, uint8_t idxBase = 0) {
+		// If an explored tile is adjacent to an
+		//   unexplored one, we draw border sprite
+		//   (gradient black <-> transparent)
+		// Tiles in four cardinal directions have these
+		//   values.
+		//
+		//      1
+		//    2   8
+		//      4
+		//
+		// Values of those unexplored are
+		//   added together, the resulting number being
+		//   an index of shadow sprite to use. For now,
+		//   some tiles are made 'on the fly' by
+		//   drawing two or more tiles
+		
+		enum Directions : uint8_t {
+			N = 1,
+			W = 2,
+			NW = N|W,
+			S = 4,
+			SW = S|W,
+			E = 8,
+			NE = N|E,
+			SE = S|E
+		};
 
-	Video* vid = core->GetVideoDriver();
-#define FOG(i)  vid->BlitSprite( core->FogSprites[i], r.x, r.y, &r )
+		assert((dirs & 0xf0) == 0);
+
+		Point p = ConvertPointToScreen(x, y);
+		switch (dirs & 0x0f) {
+			case N:
+			case W:
+			case NW:
+			case S:
+			case SW:
+			case E:
+			case NE:
+			case SE:
+				vid->BlitSprite(core->FogSprites[idxBase + dirs], p);
+				return true;
+			case N|S:
+				vid->BlitSprite(core->FogSprites[idxBase + N], p);
+				vid->BlitSprite(core->FogSprites[idxBase + S], p);
+				return true;
+			case NW|SW:
+				vid->BlitSprite(core->FogSprites[idxBase + NW], p);
+				vid->BlitSprite(core->FogSprites[idxBase + SW], p);
+				return true;
+			case W|E:
+				vid->BlitSprite(core->FogSprites[idxBase + W], p);
+				vid->BlitSprite(core->FogSprites[idxBase + E], p);
+				return true;
+			case NW|NE:
+				vid->BlitSprite(core->FogSprites[idxBase + NW], p);
+				vid->BlitSprite(core->FogSprites[idxBase + NE], p);
+				return true;
+			case NE|SE:
+				vid->BlitSprite(core->FogSprites[idxBase + NE], p);
+				vid->BlitSprite(core->FogSprites[idxBase + SE], p);
+				return true;
+			case SW|SE:
+				vid->BlitSprite(core->FogSprites[idxBase + SW], p);
+				vid->BlitSprite(core->FogSprites[idxBase + SE], p);
+				return true;
+			default: // a fully surrounded tile is filled
+				return false;
+		}
+	};
+	
+	auto FillExplored = [=](int x, int y) {
+		int dirs = !IsExplored(x, y - 1);
+		if (!IsExplored(x - 1, y)) dirs |= 2;
+		if (!IsExplored(x, y + 1)) dirs |= 4;
+		if (!IsExplored(x + 1, y )) dirs |= 8;
+
+		if (dirs && !Fill(x, y, dirs)) {
+			FillFog(x, y, 1);
+		}
+	};
+	
+	auto FillVisible = [=](int x, int y) {
+		int dirs = !IsVisible( x, y - 1);
+		if (!IsVisible(x - 1, y)) dirs |= 2;
+		if (!IsVisible(x, y + 1)) dirs |= 4;
+		if (!IsVisible(x + 1, y)) dirs |= 8;
+
+		if (dirs && !Fill(x, y, dirs, 16)) {
+			vid->BlitSprite(core->FogSprites[16], ConvertPointToScreen(x, y));
+		}
+	};
+
 	for (int y = sy; y < dy; y++) {
-		for (int x = sx; x < dx; x++) {
-			Region r = Region(x0 + ( (x - sx) * CELL_SIZE ), y0 + ( (y - sy) * CELL_SIZE ), CELL_SIZE, CELL_SIZE);
-			if (!IsExplored(x, y)) {
-				// Unexplored tiles are all black
-				vid->DrawRect(r, ColorBlack, true);
-				continue;  // Don't draw 'invisible' fog
-			} else {
-				// If an explored tile is adjacent to an
-				//   unexplored one, we draw border sprite
-				//   (gradient black <-> transparent)
-				// Tiles in four cardinal directions have these
-				//   values.
-				//
-				//      1
-				//    2   8
-				//      4
-				//
-				// Values of those unexplored are
-				//   added together, the resulting number being
-				//   an index of shadow sprite to use. For now,
-				//   some tiles are made 'on the fly' by
-				//   drawing two or more tiles
-
-				int e = !IsExplored(x, y - 1);
-				if (!IsExplored(x - 1, y)) e |= 2;
-				if (!IsExplored(x, y + 1)) e |= 4;
-				if (!IsExplored(x + 1, y )) e |= 8;
-
-				switch (e) {
-				case 1:
-				case 2:
-				case 3:
-				case 4:
-				case 6:
-				case 8:
-				case 9:
-				case 12:
-					FOG( e );
-					break;
-				case 5:
-					FOG( 1 );
-					FOG( 4 );
-					break;
-				case 7:
-					FOG( 3 );
-					FOG( 6 );
-					break;
-				case 10:
-					FOG( 2 );
-					FOG( 8 );
-					break;
-				case 11:
-					FOG( 3 );
-					FOG( 9 );
-					break;
-				case 13:
-					FOG( 9 );
-					FOG( 12 );
-					break;
-				case 14:
-					FOG( 6 );
-					FOG( 12 );
-					break;
-				case 15: //this is black too
-					vid->DrawRect(r, ColorBlack, true);
-					break;
+		int unexploredQueue = 0;
+		int x = sx;
+		for (; x < dx; x++) {
+			if (IsExplored(x, y)) {
+				if (unexploredQueue) {
+					FillFog(x - unexploredQueue, y, unexploredQueue);
+					unexploredQueue = 0;
 				}
-			}
-
-			if (!IsVisible(x, y)) {
-				// Invisible tiles are all gray
-				FOG( 16 );
-				continue;  // Don't draw 'invisible' fog
-			} else {
-				// If a visible tile is adjacent to an
-				//   invisible one, we draw border sprite
-				//   (gradient gray <-> transparent)
-				// Tiles in four cardinal directions have these
-				//   values.
-				//
-				//      1
-				//    2   8
-				//      4
-				//
-				// Values of those invisible are
-				//   added together, the resulting number being
-				//   an index of shadow sprite to use. For now,
-				//   some tiles are made 'on the fly' by
-				//   drawing two or more tiles
-
-				int e = !IsVisible( x, y - 1);
-				if (!IsVisible(x - 1, y)) e |= 2;
-				if (!IsVisible(x, y + 1)) e |= 4;
-				if (!IsVisible(x + 1, y)) e |= 8;
-
-				switch (e) {
-				case 1:
-				case 2:
-				case 3:
-				case 4:
-				case 6:
-				case 8:
-				case 9:
-				case 12:
-					FOG( 16 + e );
-					break;
-				case 5:
-					FOG( 16 + 1 );
-					FOG( 16 + 4 );
-					break;
-				case 7:
-					FOG( 16 + 3 );
-					FOG( 16 + 6 );
-					break;
-				case 10:
-					FOG( 16 + 2 );
-					FOG( 16 + 8 );
-					break;
-				case 11:
-					FOG( 16 + 3 );
-					FOG( 16 + 9 );
-					break;
-				case 13:
-					FOG( 16 + 9 );
-					FOG( 16 + 12 );
-					break;
-				case 14:
-					FOG( 16 + 6 );
-					FOG( 16 + 12 );
-					break;
-				case 15: //this is unseen too
-					FOG( 16 );
-					break;
+				
+				if (IsVisible(x, y)) {
+					FillVisible(x, y);
+				} else {
+					vid->BlitSprite(core->FogSprites[16], ConvertPointToScreen(x, y));
 				}
+				
+				FillExplored(x, y);
+			} else {
+				// coalese all horizontally adjacent unexplored cells
+				++unexploredQueue;
 			}
 		}
+		
+		if (unexploredQueue) {
+			FillFog(x - unexploredQueue, y, unexploredQueue);
+		}
 	}
-#undef FOG
 }
 
 void Map::DrawHighlightables(const Region& viewport)
@@ -2513,7 +2494,7 @@ void Map::RedrawScreenStencil(const Region& vp, const WallPolygonGroup& walls)
 
 	if (wallStencil == NULL) {
 		// FIXME: this should be forced 8bit*4 color format
-		// but currently that is forcing some performance killing converison issues on some platforms
+		// but currently that is forcing some performance killing conversion issues on some platforms
 		// for now things will break if we use 16 bit color settings
 		Video* video = core->GetVideoDriver();
 		wallStencil = video->CreateBuffer(Region(Point(), vp.Dimensions()), Video::DISPLAY_ALPHA);
@@ -3253,14 +3234,9 @@ int Map::GetExploredMapSize() const
 	return (x*y+7)/8;
 }
 
-void Map::Explore(int setreset)
+void Map::FillExplored(bool explored)
 {
-	memset (ExploredBitmap, setreset, GetExploredMapSize() );
-}
-
-void Map::SetMapVisibility(int setreset)
-{
-	memset( VisibleBitmap, setreset, GetExploredMapSize() );
+	std::fill(ExploredBitmap, ExploredBitmap + GetExploredMapSize(), (explored) ? 0xff : 0x00);
 }
 
 // x, y are not in tile coordinates
@@ -3324,6 +3300,8 @@ void Map::ExploreMapChunk(const Point &Pos, int range, int los)
 
 void Map::UpdateFog()
 {
+	std::fill(VisibleBitmap, VisibleBitmap + GetExploredMapSize(), 0);
+	
 	for (size_t i = 0; i < actors.size(); i++) {
 		const Actor *actor = actors[i];
 		if (!actor->Modified[ IE_EXPLORE ] ) continue;

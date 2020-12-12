@@ -77,6 +77,16 @@ struct OneMinusSrcA : RGBBlender {
 };
 
 template <bool MASKED>
+struct TintDst : RGBBlender {
+	void operator()(const Color& c, Color& dst, uint8_t mask) const {
+		ShaderTint(c, dst);
+		if (MASKED) {
+			dst.a = (mask) ? (255-mask) + (c.a * mask) : c.a; // FIXME: not sure this is 100% correct, but it passes my known tests
+		}
+	}
+};
+
+template <bool MASKED>
 struct SrcRGBA : RGBBlender {
 	void operator()(const Color& c, Color& dst, uint8_t mask) const {
 		dst = c;
@@ -88,6 +98,7 @@ struct SrcRGBA : RGBBlender {
 
 enum SHADER {
 	NONE,
+	BLEND,
 	TINT,
 	GREYSCALE,
 	SEPIA

@@ -79,11 +79,8 @@ void ScrollView::ContentView::ResizeToSubviews()
 	sv->UpdateScrollbars();
 }
 	
-void ScrollView::ContentView::WillDraw()
+void ScrollView::ContentView::WillDraw(const Region& /*drawFrame*/, const Region& clip)
 {
-	Video* video = core->GetVideoDriver();
-	screenClip = video->GetScreenClip();
-	
 	ScrollView* parent = static_cast<ScrollView*>(superView);
 	
 	Region clipArea = parent->ContentRegion();
@@ -91,16 +88,17 @@ void ScrollView::ContentView::WillDraw()
 	clipArea.x = origin.x;
 	clipArea.y = origin.y;
 	
-	const Region intersect = screenClip.Intersect(clipArea);
+	const Region intersect = clip.Intersect(clipArea);
 	if (intersect.Dimensions().IsEmpty()) return; // outside the window/screen
 	
 	// clip drawing to the ContentRegion, then restore after drawing
+	Video* video = core->GetVideoDriver();
 	video->SetScreenClip(&intersect);
 }
 
-void ScrollView::ContentView::DidDraw()
+void ScrollView::ContentView::DidDraw(const Region& /*drawFrame*/, const Region& clip)
 {
-	core->GetVideoDriver()->SetScreenClip(&screenClip);
+	core->GetVideoDriver()->SetScreenClip(&clip);
 }
 
 ScrollView::ScrollView(const Region& frame)
@@ -193,7 +191,7 @@ void ScrollView::ScrollbarValueChange(ScrollBar* sb)
 	}
 }
 	
-void ScrollView::WillDraw()
+void ScrollView::WillDraw(const Region& /*drawFrame*/, const Region& /*clip*/)
 {
 	if (animation) {
 		// temporarily change the origin for drawing purposes
@@ -201,7 +199,7 @@ void ScrollView::WillDraw()
 	}
 }
 	
-void ScrollView::DidDraw()
+void ScrollView::DidDraw(const Region& /*drawFrame*/, const Region& /*clip*/)
 {
 	if (animation) {
 		// restore the origin to the true location passed to ScrollTo

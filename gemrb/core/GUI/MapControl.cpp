@@ -116,7 +116,7 @@ Point MapControl::ConvertPointFromGame(Point p) const
 	return p + mosRgn.Origin();
 }
 	
-void MapControl::WillDraw()
+void MapControl::WillDraw(const Region& /*drawFrame*/, const Region& /*clip*/)
 {
 	UpdateMap();
 
@@ -166,7 +166,7 @@ void MapControl::DrawSelf(Region rgn, const Region& /*clip*/)
 	}
 
 	if (MapMOS) {
-		video->BlitSprite( MapMOS.get(), mosRgn.x, mosRgn.y, NULL );
+		video->BlitSprite(MapMOS, mosRgn.Origin());
 	}
 
 	if ((core->GetGameControl()->DebugFlags & DEBUG_SHOW_FOG_UNEXPLORED) == 0)

@@ -49,9 +49,11 @@ static void MergeTextAreaAndScrollbar(TextArea* ta, ScrollBar* sb)
 	if (sbr.x > tar.x + tar.w) {
 		margins.right += sbr.x - (tar.x + tar.w) + sbr.w;
 		tar.w += margins.right;
-	} else {
-		// TODO: there aren't actually scrollbars on the left
-		// but if there were we would handle that here
+	} else if (sbr.x < tar.x) {
+		margins.left += tar.x - sbr.x;
+		margins.right += sbr.w; // FIXME: this shouldn't be needed, but we dont support left sided scrollbars yet
+		tar.w += tar.x - sbr.x;
+		tar.x = sbr.x;
 	}
 
 	if (sbr.y < tar.y) {
@@ -268,10 +270,12 @@ Window* CHUImporter::GetWindow(ScriptingId wid) const
 				str->ReadWord( &CapXPos );
 				str->ReadWord( &CapYPos );
 				Progressbar* pbar = new Progressbar(ctrlFrame, KnobStepsCount);
-				pbar->SetSliderPos( KnobXPos, KnobYPos, CapXPos, CapYPos );
+				// TODO: fix this with #232
+				pbar->SetSliderPos(Point(KnobXPos, KnobYPos), Point(CapXPos, CapYPos));
 
 				Holder<Sprite2D> img;
 				Holder<Sprite2D> img2;
+				Holder<Sprite2D> img3;
 				if ( MOSFile[0] ) {
 					ResourceHolder<ImageMgr> mos = GetResourceHolder<ImageMgr>(MOSFile);
 					img = mos->GetSprite2D();
@@ -281,7 +285,6 @@ Window* CHUImporter::GetWindow(ScriptingId wid) const
 					img2 = mos->GetSprite2D();
 				}
 
-				pbar->SetImage( img, img2 );
 				if( KnobStepsCount ) {
 					/* getting the bam */
 					AnimationFactory *af = (AnimationFactory *)
@@ -295,9 +298,10 @@ Window* CHUImporter::GetWindow(ScriptingId wid) const
 				}
 				else {
 					ResourceHolder<ImageMgr> mos = GetResourceHolder<ImageMgr>(BAMFile);
-					Holder<Sprite2D> img3 = mos->GetSprite2D();
-					pbar->SetBarCap( img3 );
+					img3 = mos->GetSprite2D();
 				}
+				pbar->SetBackground(img);
+				pbar->SetImages(img2, img3);
 				ctrl = pbar;
 			}
 			break;

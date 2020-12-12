@@ -36,9 +36,6 @@ Progressbar::Progressbar(const Region& frame, unsigned short KnobStepsCount)
 
 	this->KnobStepsCount = KnobStepsCount;
 	PBarAnim = NULL;
-	PBarCap = NULL;
-	KnobXPos = KnobYPos = 0;
-	CapXPos = CapYPos = 0;
 
 	SetValueRange(0, 100);
 }
@@ -48,6 +45,15 @@ Progressbar::~Progressbar()
 	delete PBarAnim;
 }
 
+bool Progressbar::IsOpaque() const
+{
+	bool isOpaque = Control::IsOpaque();
+	if (!isOpaque) {
+		isOpaque = BackGround2 && BackGround2->HasTransparency() == false;
+	}
+	return isOpaque;
+}
+
 /** Draws the Control on the Output Display */
 void Progressbar::DrawSelf(Region rgn, const Region& /*clip*/)
 {
@@ -55,10 +61,8 @@ void Progressbar::DrawSelf(Region rgn, const Region& /*clip*/)
 
 	if((val >= 100) && KnobStepsCount && BackGround2) {
 		//animated progbar end stage
-		core->GetVideoDriver()->BlitSprite( BackGround2.get(), rgn.x, rgn.y, &rgn );
+		core->GetVideoDriver()->BlitSprite(BackGround2, rgn.Origin(), &rgn);
 		return; //done for animated progbar
-	} else if (BackGround) {
-		core->GetVideoDriver()->BlitSprite( BackGround.get(), rgn.x, rgn.y, &rgn );
 	}
 
 	unsigned int Count;
@@ -68,11 +72,11 @@ void Progressbar::DrawSelf(Region rgn, const Region& /*clip*/)
 		const Size& size = BackGround2->Frame.Dimensions();
 		//this is the PST/IWD specific part
 		Count = val * size.w / 100;
-		Region r( rgn.x + KnobXPos, rgn.y + KnobYPos, Count, size.h );
-		core->GetVideoDriver()->BlitSprite( BackGround2.get(), r.x, r.y, &r );
+		Region r(rgn.Origin() + KnobPos, Size(Count, size.h));
+		core->GetVideoDriver()->BlitSprite(BackGround2, r.Origin(), &r);
 
-		core->GetVideoDriver()->BlitSprite( PBarCap.get(),
-			rgn.x+CapXPos+Count-PBarCap->Frame.w, rgn.y+CapYPos );
+		core->GetVideoDriver()->BlitSprite(PBarCap, rgn.x + CapPos.x + Count-PBarCap->Frame.w,
+										   rgn.y + CapPos.y);
 		return;
 	}
 
@@ -80,7 +84,7 @@ void Progressbar::DrawSelf(Region rgn, const Region& /*clip*/)
 	Count=val*KnobStepsCount/100;
 	for(unsigned int i=0; i<Count ;i++ ) {
 		Holder<Sprite2D> Knob = PBarAnim->GetFrame(i);
-		core->GetVideoDriver()->BlitSprite( Knob, 0, 0 );
+		core->GetVideoDriver()->BlitSprite(Knob, Point());
 	}
 }
 
@@ -93,16 +97,11 @@ void Progressbar::UpdateState(unsigned int Sum)
 }
 
 /** Sets the selected image */
-void Progressbar::SetImage(Holder<Sprite2D> img, Holder<Sprite2D> img2)
+void Progressbar::SetImages(Holder<Sprite2D> bg, Holder<Sprite2D> cap)
 {
-	BackGround = img;
-	BackGround2 = img2;
+	BackGround2 = bg;
+	PBarCap = cap;
 	MarkDirty();
-}
-
-void Progressbar::SetBarCap(Holder<Sprite2D> img3)
-{
-	PBarCap = img3;
 }
 
 void Progressbar::SetAnimation(Animation *arg)
@@ -111,12 +110,10 @@ void Progressbar::SetAnimation(Animation *arg)
 	PBarAnim = arg;
 }
 
-void Progressbar::SetSliderPos(int x, int y, int x2, int y2)
+void Progressbar::SetSliderPos(const Point& knob, const Point& cap)
 {
-	KnobXPos=x;
-	KnobYPos=y;
-	CapXPos=x2;
-	CapYPos=y2;
+	KnobPos = knob;
+	CapPos = cap;
 }
 
 }

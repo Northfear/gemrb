@@ -128,7 +128,6 @@ Control ItemDragOp::dragDummy = Control(Region());
 
 ItemDragOp::ItemDragOp(CREItem* item)
 : ControlDragOp(&dragDummy), item(item) {
-	// FIXME: not sure if this is the best place or if there is a better way to get the icon
 	Item* i = gamedata->GetItem(item->ItemResRef);
 	assert(i);
 	Holder<Sprite2D> pic = gamedata->GetBAMSprite(i->ItemIcon, -1, 1);
@@ -976,7 +975,7 @@ void Interface::Main()
 
 		GameLoop();
 		// TODO: find other animations that need to be synchronized
-		// we can create a manager for them and everything can by updated at once
+		// we can create a manager for them and everything can be updated at once
 		GlobalColorCycle.AdvanceTime(time);
 		winmgr->DrawWindows();
 		time = GetTickCount();
@@ -1121,16 +1120,6 @@ int Interface::LoadSprites()
 	FogSprites[28] = video->MirrorSprite( FogSprites[19], BLIT_MIRRORX|BLIT_MIRRORY, false );
 	assert(FogSprites[28]->renderFlags&BLIT_MIRRORX);
 	assert(FogSprites[28]->renderFlags&BLIT_MIRRORY);
-
-	ieDword i = 0;
-	vars->Lookup("3D Acceleration", i);
-	if (i) {
-		for(auto &sprite: FogSprites) {
-			if (sprite) {
-				sprite = video->CreateAlpha(sprite);
-			}
-		}
-	}
 
 	// Load ground circle bitmaps (PST only)
 	Log(MESSAGE, "Core", "Loading Ground circle bitmaps...");
@@ -2282,7 +2271,7 @@ bool Interface::LoadGemRBINI()
 		Log(MESSAGE, "Core", "Initializing Tooltips...");
 		if (anim) {
 			TooltipBG = new TooltipBackground(anim->GetFrame(0, 0), anim->GetFrame(0, 1), anim->GetFrame(0, 2) );
-			// FIXME: this is an arbitrary huristic and speed
+			// FIXME: this is an arbitrary heuristic and speed
 			TooltipBG->SetAnimationSpeed((ttMargin == 5) ? 5 : 0);
 			TooltipBG->SetMargin(ttMargin);
 		}
@@ -2437,7 +2426,7 @@ Actor *Interface::SummonCreature(const ieResRef resource, const ieResRef vvcres,
 	//maximum number of monsters summoned
 	int cnt=10;
 	Actor * ab = NULL;
-	Actor *summoner = nullptr;
+	const Actor *summoner = nullptr;
 
 	Map *map;
 	if (target) {
