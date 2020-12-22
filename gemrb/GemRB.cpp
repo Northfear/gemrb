@@ -38,7 +38,7 @@
 #include <psp2/apputil.h> 
 
 // allocating memory for application on Vita
-int _newlib_heap_size_user = 340 * 1024 * 1024;
+int _newlib_heap_size_user = 344 * 1024 * 1024;
 char *vitaArgv[3];
 char configPath[25];
 
@@ -56,11 +56,11 @@ void VitaSetArguments(int *argc, char **argv[])
 	vitaArgv[0] = (char*)"";
 	// 0x05 probably corresponds to psla event sent from launcher screen of the app in LiveArea
 	if (eventParam.type == 0x05) {
-		char buffer[2048];
-		memset(buffer, 0, 2048);
-		sceAppUtilAppEventParseLiveArea(&eventParam, buffer);
+		SceAppUtilLiveAreaParam appUtilLiveParam;
+		memset(&appUtilLiveParam, 0, sizeof(SceAppUtilLiveAreaParam));
+		sceAppUtilAppEventParseLiveArea(&eventParam, &appUtilLiveParam);
 		vitaArgv[1] = (char*)"-c";
-		sprintf(configPath, "ux0:data/GemRB/%s.cfg", buffer);
+		sprintf(configPath, "ux0:data/GemRB/%s.cfg", appUtilLiveParam.param);
 		vitaArgv[2] = configPath;
 		vitaArgc = 3;
 	}
