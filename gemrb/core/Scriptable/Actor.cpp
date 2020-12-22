@@ -1333,7 +1333,7 @@ static void pcf_hitpoint(Actor *actor, ieDword oldValue, ieDword hp)
 		}
 	}
 	// don't fire off events if nothing changed, which can happen when called indirectly
-	if (actor->BaseStats[IE_HITPOINTS] != hp || actor->Modified[IE_HITPOINTS] != hp) {
+	if (oldValue != hp) {
 		actor->BaseStats[IE_HITPOINTS] = hp;
 		actor->Modified[IE_HITPOINTS] = hp;
 		if (actor->InParty) core->SetEventFlag(EF_PORTRAIT);
@@ -5922,7 +5922,6 @@ bool Actor::CheckOnDeath()
 		return false;
 	}
 
-	//TODO: verify removal times
 	ieDword time = core->GetGame()->GameTime;
 	if (!pstflags && Modified[IE_MC_FLAGS]&MC_REMOVE_CORPSE) {
 		RemovalTime = time;
@@ -6646,8 +6645,9 @@ void Actor::SetModal(ieDword newstate, bool force)
 		}
 
 		//update the action bar
-		if (Modal.State != newstate || newstate != MS_NONE)
+		if (Modal.State != newstate || newstate != MS_NONE) {
 			core->SetEventFlag(EF_ACTION);
+		}
 
 		// when called with the same state twice, toggle to MS_NONE
 		if (!force && Modal.State == newstate) {
@@ -8848,10 +8848,9 @@ bool Actor::HandleActorStance()
 	int StanceID = GetStance();
 
 	if (ca->autoSwitchOnEnd) {
-		int nextstance = ca->nextStanceID;
-		SetStance( nextstance );
+		SetStance(ca->nextStanceID);
 		ca->autoSwitchOnEnd = false;
-		return nextstance != ca->previousStanceID;
+		return true;
 	}
 	int x = RAND(0, 25);
 	if ((StanceID==IE_ANI_AWAKE) && !x ) {
