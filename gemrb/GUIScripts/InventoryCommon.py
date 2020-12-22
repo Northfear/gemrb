@@ -319,10 +319,11 @@ def DisplayItem (slotItem, type):
 	# perhaps it's true everywhere, but it's definitely needed in pst
 	# and yes, the check is reversed, so the bit name is a misnomer in this case
 	if GameCheck.IsPST() and slotItem["Flags"] & IE_INV_ITEM_CONVERSABLE:
-		dialog = False
+		
 		drink = True # "Use"
 
-	if drink:
+	if drink and not dialog:
+		# Standard consumable item
 		Button.SetText (strrefs[3])
 		Button.SetEvent (IE_GUI_BUTTON_ON_PRESS, ConsumeItem)
 	elif read:
@@ -343,7 +344,12 @@ def DisplayItem (slotItem, type):
 			Button.SetText ("Open container")
 		Button.SetEvent (IE_GUI_BUTTON_ON_PRESS, OpenItemWindow)
 	elif dialog:
-		Button.SetText (strrefs[5])
+		if drink:
+			# Dialog item that is 'used'
+			Button.SetText (strrefs[3])
+		else:
+			# Dialog item that is 'talked to'
+			Button.SetText (strrefs[5])
 		Button.SetEvent (IE_GUI_BUTTON_ON_PRESS, DialogItemWindow)
 	elif familiar and not GameCheck.IsPST():
 		# PST earings share a type with familiars, so no
@@ -692,6 +698,13 @@ def ConsumeItem ():
 
 	pc = GemRB.GameGetSelectedPCSingle ()
 	slot = GemRB.GetVar ("ItemButton")
+
+	# PST: get the real inventory slot from the itemhash map
+	if GameCheck.IsPST():
+		slot = GUIINV.ItemHash[slot][0]
+
+	print "Using slot ", slot
+
 	# the drink item header is always the first
 	# pst also requires forcing the target (eg. clot charms), which doesn't hurt elsewhere
 	GemRB.UseItem (pc, slot, 0, 5)
