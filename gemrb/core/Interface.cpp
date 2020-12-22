@@ -3586,7 +3586,7 @@ int Interface::PlayMovie(const char* ResRef)
 		free(strrefs);
 	//restarting music
 	if (music)
-		music->Start();
+		music->Start(true);
 	if (ambim) ambim->activate();
 	//this will fix redraw all windows as they looked like
 	//before the movie
@@ -3859,7 +3859,7 @@ void Interface::QuitGame(int BackToMain)
 	if (AudioDriver) {
 		AmbientMgr *ambim = AudioDriver->GetAmbientMgr();
 		if (ambim) ambim->deactivate();
-		AudioDriver->Stop(); // also kill sounds
+		AudioDriver->Stop(true); // also kill sounds
 	}
 	//delete game, worldmap
 	if (game) {
