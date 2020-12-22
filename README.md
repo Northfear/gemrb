@@ -16,27 +16,15 @@ Here are the game config names and default game folders (where you should copy y
 - Icewind Dale - IWD.cfg. Default game path: ux0:data/GemRB/IWD
 - Planescape: Torment - PST.cfg . Default game path: ux0:data/GemRB/PST
 
-rePatch reDux0 plugin is required for proper suspend/resume support
-
-https://github.com/dots-tb/rePatch-reDux0
+[rePatch reDux0](https://github.com/dots-tb/rePatch-reDux0) OR [FdFix](https://github.com/TheOfficialFloW/FdFix) plugin is required for proper suspend/resume support (only use one at a time).
 
 ## Building
 
 ### Prerequisites
 - DolceSDK
-- libSDL 1.2
+- [libSDL 1.2](https://github.com/Northfear/SDL-Vita/tree/SDL12) (this one is recommended due to touchpad support and a bit better performance)
 - SDL_mixer
-- libpython
-
-This one 
-
-https://github.com/uyjulian/python_vita
-
-Or this one (checkout and just do make && make install)
-
-https://github.com/Northfear/Python-2.7.3-vita
-
-are both working fine
+- [libpython](https://github.com/uyjulian/python_vita)
 
 ### Build & installation
 ```
@@ -85,7 +73,7 @@ VitaKeepAspectRatio=1 keeps aspect ratio of original image when scaling. VitaKee
 
 Widescreen mod is supported, but performance with native resolution can be poor in areas with a lot of characters.
 
-"Bpp=16" option is recommended for better performance. The game is pretty IO heavy. Loading can take quite some time. 
+"Bpp=16" option is recommended for better performance. The game is pretty IO heavy, loading can take quite some time. Disabling walking and combat sounds may reduce stutters during initial load of audio files into the cache.
 
 ## Controls
 - Left analog stick - Pointer movement
