@@ -7719,6 +7719,7 @@ static PyObject* GemRB_GetSlotType(PyObject * /*self*/, PyObject* args)
 	PyDict_SetItemString(dict, "Type", PyInt_FromLong((int)core->QuerySlotType(tmp)));
 	PyDict_SetItemString(dict, "ID", PyInt_FromLong((int)core->QuerySlotID(tmp)));
 	PyDict_SetItemString(dict, "Tip", PyInt_FromLong((int)core->QuerySlottip(tmp)));
+	PyDict_SetItemString(dict, "Flags", PyInt_FromLong((int)core->QuerySlotFlags(tmp)));
 	//see if the actor shouldn't have some slots displayed
 	if (!actor || !actor->PCStats) {
 		goto has_slot;
@@ -8555,6 +8556,18 @@ static PyObject* GemRB_Button_SetSpellIcon(PyObject * /*self*/, PyObject* args)
 	return ret;
 }
 
+static Sprite2D* GetAnySprite(const char *resRef, int cycle, int frame, bool silent = true)
+{
+	Sprite2D *img = gamedata->GetBAMSprite(resRef, cycle, frame, silent);
+	if (img) return img;
+
+	// try static image formats to support PNG
+	ResourceHolder<ImageMgr> im = GetResourceHolder<ImageMgr>(resRef);
+	if (im) {
+		img = im->GetSprite2D();
+	}
+	return img;
+}
 
 static Sprite2D* GetUsedWeaponIcon(Item *item, int which)
 {
@@ -8563,9 +8576,9 @@ static Sprite2D* GetUsedWeaponIcon(Item *item, int which)
 		ieh = item->GetWeaponHeader(true);
 	}
 	if (ieh) {
-		return gamedata->GetBAMSprite(ieh->UseIcon, -1, which, true);
+		return GetAnySprite(ieh->UseIcon, -1, which);
 	}
-	return gamedata->GetBAMSprite(item->ItemIcon, -1, which, true);
+	return GetAnySprite(item->ItemIcon, -1, which);
 }
 
 static void SetItemText(Button* btn, int charges, bool oneisnone)
@@ -8636,12 +8649,12 @@ static PyObject *SetItemIcon(int wi, int ci, const char *ItemResRef, int Which, 
 	int i;
 	switch (Which) {
 	case 0: case 1:
-		Picture = gamedata->GetBAMSprite(item->ItemIcon, -1, Which, true);
+		Picture = GetAnySprite(item->ItemIcon, -1, Which);
 		break;
 	case 2:
 		btn->SetPicture( NULL ); // also calls ClearPictureList
 		for (i=0;i<4;i++) {
-			Picture = gamedata->GetBAMSprite(item->DescriptionIcon, -1, i, true);
+			Picture = GetAnySprite(item->DescriptionIcon, -1, i);
 			if (Picture)
 				btn->StackPicture(Picture);
 		}
@@ -8657,7 +8670,7 @@ static PyObject *SetItemIcon(int wi, int ci, const char *ItemResRef, int Which, 
 			Item* item2 = gamedata->GetItem(Item2ResRef, true);
 			if (item2) {
 				Sprite2D* Picture2;
-				Picture2 = gamedata->GetBAMSprite(item2->ItemIcon, -1, Which-4, true);
+				Picture2 = GetAnySprite(item2->ItemIcon, -1, Which - 4);
 				if (Picture2) btn->StackPicture(Picture2);
 				gamedata->FreeItem( item2, Item2ResRef, false );
 			}
@@ -8668,7 +8681,7 @@ static PyObject *SetItemIcon(int wi, int ci, const char *ItemResRef, int Which, 
 	default:
 		ITMExtHeader *eh = item->GetExtHeader(Which-6);
 		if (eh) {
-			Picture = gamedata->GetBAMSprite(eh->UseIcon, -1, 0, true);
+			Picture = GetAnySprite(eh->UseIcon, -1, 0);
 		}
 		else {
 			Picture = NULL;
