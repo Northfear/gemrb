@@ -588,9 +588,7 @@ bool OpenALAudioDriver::CanPlay()
 
 void OpenALAudioDriver::ResetMusics(bool lockAudioThread)
 {
-	if (lockAudioThread) {
-		SDL_LockMutex(musicMutex);
-	}
+	SDL_LockMutex(musicMutex);
 	MusicPlaying = false;
 	if (MusicSource && alIsSource(MusicSource)) {
 		alSourceStop(MusicSource);
@@ -605,36 +603,24 @@ void OpenALAudioDriver::ResetMusics(bool lockAudioThread)
 			}
 		}
 	}
-	if (lockAudioThread) {
-		SDL_UnlockMutex(musicMutex);
-	}
+	SDL_UnlockMutex(musicMutex);
 }
 
 bool OpenALAudioDriver::Play(bool lockAudioThread)
 {
 	if (!MusicReader) return false;
 
-	if (lockAudioThread) {
-		SDL_LockMutex(musicMutex);
-	}
 	if (!MusicPlaying)
 		MusicPlaying = true;
-	if (lockAudioThread) {
-		SDL_UnlockMutex(musicMutex);
-	}
 
 	return true;
 }
 
 bool OpenALAudioDriver::Stop(bool lockAudioThread)
 {
-	if (lockAudioThread) {
-		SDL_LockMutex(musicMutex);
-	}
+	SDL_LockMutex(musicMutex);
 	if (!MusicSource || !alIsSource( MusicSource )) {
-		if (lockAudioThread) {
-			SDL_UnlockMutex(musicMutex);
-		}
+		SDL_UnlockMutex(musicMutex);
 		return false;
 	}
 	alSourceStop( MusicSource );
@@ -643,9 +629,7 @@ bool OpenALAudioDriver::Stop(bool lockAudioThread)
 	alDeleteSources( 1, &MusicSource );
 	checkALError("Unable to delete music source", WARNING);
 	MusicSource = 0;
-	if (lockAudioThread) {
-		SDL_UnlockMutex(musicMutex);
-	}
+	SDL_UnlockMutex(musicMutex);
 	return true;
 }
 

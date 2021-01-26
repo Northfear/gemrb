@@ -197,7 +197,7 @@ void MUSImporter::Start(bool lockAudioThread)
 				PLnext = 0;
 		}
 		PlayMusic(PLpos, lockAudioThread);
-		core->GetAudioDrv()->Play(lockAudioThread);
+		core->GetAudioDrv()->Play();
 		lastSound = playlist[PLpos].soundID;
 		Playing = true;
 	}
@@ -244,7 +244,7 @@ int MUSImporter::SwitchPlayList(const char* name, bool Hard)
 		}
 	}
 
-	if (OpenPlaylist(name, true)) {
+	if (OpenPlaylist(name)) {
 		Start(true);
 		return 0;
 	}
@@ -281,7 +281,7 @@ void MUSImporter::PlayNext()
 		core->GetAudioDrv()->Stop(false);
 		//start new music after the old faded out
 		if (PLNameNew[0]) {
-			if (OpenPlaylist(PLNameNew, false)) {
+			if (OpenPlaylist(PLNameNew)) {
 				Start(false);
 			}
 			PLNameNew[0]='\0';

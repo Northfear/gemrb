@@ -25,6 +25,7 @@
 #include "LRUCache.h"
 
 #include <vector>
+#include <atomic>
 #include <SDL_mixer.h>
 
 #define MIXER_CHANNELS 8
@@ -52,8 +53,8 @@ public:
 	Holder<SoundHandle> Play(const char* ResRef, unsigned int channel,
 		int XPos, int YPos, unsigned int flags = 0, unsigned int *length = 0);
 	int CreateStream(Holder<SoundMgr>, bool lockAudioThread);
-	bool Play(bool lockAudioThread);
-	bool Stop(bool lockAudioThread);
+	bool Play();
+	bool Stop();
 	bool Pause() { return true; } /*not implemented*/
 	bool Resume() { return true; } /*not implemented*/
 	bool CanPlay();
@@ -82,7 +83,7 @@ private:
 	int XPos, YPos;
 	Holder<SoundMgr> MusicReader;
 
-	bool MusicPlaying;
+	std::atomic<bool> MusicPlaying;
 	unsigned int curr_buffer_offset;
 	std::vector<BufferedData> buffers;
 
