@@ -87,6 +87,7 @@ void SDLAudio::music_callback(void *udata, unsigned short *stream, int len)
 {
 	SDLAudio *driver = (SDLAudio *)udata;
 	SDL_LockMutex(driver->MusicMutex);
+
 	do {
 		// TODO: conversion? mutexes? sanity checks? :)
 		int num_samples = len / 2;
@@ -295,19 +296,14 @@ int SDLAudio::CreateStream(Holder<SoundMgr> newMusic, bool lockAudioThread)
 	return 0;
 }
 
-bool SDLAudio::Stop(bool lockAudioThread)
+bool SDLAudio::Stop()
 {
 	MusicPlaying = false;
 	Mix_HookMusic(NULL, NULL);
-
-	if (lockAudioThread) {
-		SDL_UnlockMutex(MusicMutex);
-	}
-
 	return true;
 }
 
-bool SDLAudio::Play(bool lockAudioThread)
+bool SDLAudio::Play()
 {
 	if (!MusicReader) {
 		return false;
@@ -317,14 +313,10 @@ bool SDLAudio::Play(bool lockAudioThread)
 	return true;
 }
 
-void SDLAudio::ResetMusics(bool lockAudioThread)
+void SDLAudio::ResetMusics()
 {
 	MusicPlaying = false;
 	Mix_HookMusic(NULL, NULL);
-
-	if (lockAudioThread) {
-		SDL_UnlockMutex(MusicMutex);
-	}
 }
 
 bool SDLAudio::CanPlay()

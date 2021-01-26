@@ -356,7 +356,7 @@ OpenALAudioDriver::~OpenALAudioDriver(void)
 		streams[i].ForceClear();
 	}
 	speech.ForceClear();
-	ResetMusics(true);
+	ResetMusics();
 	clearBufferCache(true);
 
 #ifdef HAVE_OPENAL_EFX_H
@@ -586,7 +586,7 @@ bool OpenALAudioDriver::CanPlay()
 	return true;
 }
 
-void OpenALAudioDriver::ResetMusics(bool lockAudioThread)
+void OpenALAudioDriver::ResetMusics()
 {
 	SDL_LockMutex(musicMutex);
 	MusicPlaying = false;
@@ -606,7 +606,7 @@ void OpenALAudioDriver::ResetMusics(bool lockAudioThread)
 	SDL_UnlockMutex(musicMutex);
 }
 
-bool OpenALAudioDriver::Play(bool lockAudioThread)
+bool OpenALAudioDriver::Play()
 {
 	if (!MusicReader) return false;
 
@@ -616,7 +616,7 @@ bool OpenALAudioDriver::Play(bool lockAudioThread)
 	return true;
 }
 
-bool OpenALAudioDriver::Stop(bool lockAudioThread)
+bool OpenALAudioDriver::Stop()
 {
 	SDL_LockMutex(musicMutex);
 	if (!MusicSource || !alIsSource( MusicSource )) {
