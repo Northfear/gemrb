@@ -24,14 +24,13 @@
 #include "Audio.h"
 #include "LRUCache.h"
 
+#include <mutex>
 #include <vector>
 #include <atomic>
 #include <SDL_mixer.h>
 
 #define MIXER_CHANNELS 8
 #define BUFFER_CACHE_SIZE 100
-
-struct SDL_mutex;
 
 namespace GemRB {
 
@@ -91,7 +90,7 @@ private:
 	unsigned short audio_format;
 	int audio_channels;
 
-	SDL_mutex *MusicMutex;
+	std::mutex MusicMutex;
 	LRUCache buffercache;
 };
 
