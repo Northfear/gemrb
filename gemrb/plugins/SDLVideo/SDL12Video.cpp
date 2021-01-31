@@ -137,6 +137,7 @@ int SDL12VideoDriver::CreateDisplay(int w, int h, int b, bool fs, const char* ti
 			vitaDestRect.y = (VITA_FULLSCREEN_HEIGHT - height) / 2;
 		}
 
+		SDL_SetVideoModeSync(0);
 		SDL_SetVideoModeScaling(vitaDestRect.x, vitaDestRect.y, vitaDestRect.w, vitaDestRect.h);
 	}
 #endif
