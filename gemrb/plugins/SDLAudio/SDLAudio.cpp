@@ -130,7 +130,6 @@ void SDLAudio::music_callback(void *udata, uint8_t *stream, int len)
 			Mix_HookMusic(NULL, NULL);
 			break;
 		}
-
 	} while(true);
 
 	SetAudioStreamVolume(mixerStream, mixerLen, MIX_MAX_VOLUME * volume / 100);

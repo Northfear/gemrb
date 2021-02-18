@@ -127,8 +127,8 @@ private:
 private:
 	ALCcontext *alutContext;
 	ALuint MusicSource;
-	std::atomic<bool> MusicPlaying;
-	std::mutex musicMutex;
+	bool MusicPlaying;
+	std::recursive_mutex musicMutex;
 	ALuint MusicBuffer[MUSICBUFFERS];
 	Holder<SoundMgr> MusicReader;
 	LRUCache buffercache;

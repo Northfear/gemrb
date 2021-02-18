@@ -23,6 +23,7 @@
 
 #include "AmbientMgr.h"
 
+#include <atomic>
 #include <condition_variable>
 #include <mutex>
 #include <string>
@@ -35,7 +36,7 @@ class Ambient;
 
 class AmbientMgrAL : public AmbientMgr {
 public:
-	AmbientMgrAL() : AmbientMgr() { }
+	AmbientMgrAL();
 	~AmbientMgrAL();
 
 	void setAmbients(const std::vector<Ambient *> &a);
@@ -49,7 +50,7 @@ private:
 	public:
 		AmbientSource(const Ambient *a);
 		~AmbientSource();
-		unsigned int tick(long long ticks, Point listener, ieDword timeslice);
+		unsigned int tick(uint64_t ticks, Point listener, ieDword timeslice);
 		void hardStop();
 		void SetVolume(unsigned short volume);
 	private:
@@ -69,9 +70,10 @@ private:
 	unsigned int tick(uint64_t ticks) const;
 	void hardStop() const;
 	
-	std::mutex mutex;
+	std::recursive_mutex mutex;
 	std::thread player;
-	std::condition_variable cond;
+	std::condition_variable_any cond;
+	std::atomic_bool playing {true};
 };
 
 }
