@@ -28,12 +28,29 @@
 #include <atomic>
 #include <SDL_mixer.h>
 
-#define MIXER_CHANNELS 8
+#define MIXER_CHANNELS 16
 #define BUFFER_CACHE_SIZE 100
+#define AUDIO_DISTANCE_ROLLOFF_MOD 1.3
 
 struct SDL_mutex;
 
 namespace GemRB {
+
+class SDLAudioSoundHandle : public SoundHandle 
+{
+public:
+	SDLAudioSoundHandle(Mix_Chunk *chunk, int channel, bool relative) : mixChunk(chunk), chunkChannel(channel), sndRelative(relative) { };
+	virtual ~SDLAudioSoundHandle() { }
+	virtual void SetPos(int XPos, int YPos);
+	virtual bool Playing();
+	virtual void Stop();
+	virtual void StopLooping();
+	void Invalidate() { }
+private:
+	Mix_Chunk *mixChunk;
+	int chunkChannel;
+	bool sndRelative;
+};
 
 struct BufferedData {
 	char *buf;
@@ -81,7 +98,7 @@ private:
 	void clearBufferCache();
 	Mix_Chunk* loadSound(const char *ResRef, unsigned int &time_length);
 
-	int XPos, YPos;
+	Point listenerPos;
 	Holder<SoundMgr> MusicReader;
 
 	std::atomic<bool> MusicPlaying;

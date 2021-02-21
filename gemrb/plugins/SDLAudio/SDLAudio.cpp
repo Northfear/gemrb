@@ -30,13 +30,52 @@
 
 #include <SDL.h>
 #include <SDL_mixer.h>
+#include <cmath>
 
 using namespace GemRB;
 
+static void SetChannelPosition(int listenerXPos, int listenerYPos, int XPos, int YPos, int channel)
+{
+	int x = listenerXPos - XPos;
+	int y = listenerYPos - YPos;
+	int16_t angle = atan2(y, x) * 180 / M_PI - 90;
+	if (angle < 0) {
+		angle += 360;
+	}
+	uint8_t distance = std::min(static_cast<int32_t>(sqrt(x * x + y * y) / AUDIO_DISTANCE_ROLLOFF_MOD), 255);
+	Mix_SetPosition(channel, angle, distance);
+}
+
+void SDLAudioSoundHandle::SetPos(int XPos, int YPos)
+{
+	if (sndRelative)
+		return;
+
+	int listenerXPos = 0;
+	int listenerYPos = 0;
+	core->GetAudioDrv()->GetListenerPos(listenerXPos, listenerYPos);
+	SetChannelPosition(listenerXPos, listenerYPos, XPos, YPos, chunkChannel);
+}
+
+bool SDLAudioSoundHandle::Playing()
+{
+	return (mixChunk && Mix_Playing(chunkChannel) && Mix_GetChunk(chunkChannel) == mixChunk);
+}
+
+void SDLAudioSoundHandle::Stop()
+{
+	// Mix_FadeOutChannel is not as agressive sounding (especially when stopping spellcasting) as Mix_HaltChannel
+	Mix_FadeOutChannel(chunkChannel, 500);
+}
+
+void SDLAudioSoundHandle::StopLooping()
+{
+	// No way to stop looping. Fading out instead..
+	Mix_FadeOutChannel(chunkChannel, 1000);
+}
+
 SDLAudio::SDLAudio(void)
 {
-	XPos = 0;
-	YPos = 0;
 	ambim = new AmbientMgr();
 	MusicPlaying = false;
 	MusicMutex = NULL;
@@ -88,7 +127,7 @@ void SDLAudio::SetAudioStreamVolume(uint8_t *stream, int len, int volume)
 	uint8_t *mixData = new uint8_t[len];
 	memcpy(mixData, stream, len * sizeof(uint8_t));
 	memset(stream, 0, len); // mix audio data against silence
-	SDL_MixAudio(static_cast<uint8_t*>(stream), static_cast<const uint8_t*>(mixData), len, volume);
+	SDL_MixAudio(stream, mixData, len, volume);
 	delete[] mixData;
 }
 
@@ -97,7 +136,7 @@ void SDLAudio::music_callback(void *udata, uint8_t *stream, int len)
 	ieDword volume = 100;
 	core->GetDictionary()->Lookup("Volume Music", volume);
 
-	// No point of bothering if it's off anyway. Hope nothing breaks..
+	// No point of bothering if it's off anyway
 	if (volume == 0) {
 		return;
 	}
@@ -259,10 +298,6 @@ Holder<SoundHandle> SDLAudio::Play(const char* ResRef, unsigned int channel,
 	Mix_Chunk *chunk;
 	unsigned int time_length;
 
-	// TODO: some panning
-	(void)XPos;
-	(void)YPos;
-
 	if (!ResRef) {
 		if (flags & GEM_SND_SPEECH) {
 			Mix_HaltChannel(0);
@@ -271,10 +306,12 @@ Holder<SoundHandle> SDLAudio::Play(const char* ResRef, unsigned int channel,
 	}
 
 	int chan = -1;
+	int loop = (flags & GEM_SND_LOOPING) ? -1 : 0;
 	ieDword volume = 100;
 
 	if (flags & GEM_SND_SPEECH) {
 		chan = 0;
+		loop = 0; // Speech ignores GEM_SND_LOOPING
 		core->GetDictionary()->Lookup("Volume Voices", volume);
 	} else {
 		core->GetDictionary()->Lookup("Volume SFX", volume);
@@ -295,14 +332,17 @@ Holder<SoundHandle> SDLAudio::Play(const char* ResRef, unsigned int channel,
 
 	Mix_VolumeChunk(chunk, MIX_MAX_VOLUME * (GetVolume(channel) * volume / 10000.0f));
 
-	chan = Mix_PlayChannel(chan, chunk, 0);
+	chan = Mix_PlayChannel(chan, chunk, loop);
 	if (chan < 0) {
 		print("error playing channel");
 		return Holder<SoundHandle>();
 	}
 
-	// TODO
-	return Holder<SoundHandle>();
+	if (!(flags & GEM_SND_RELATIVE)) {
+		SetChannelPosition(listenerPos.x, listenerPos.y, XPos, YPos, chan);
+	}
+
+	return new SDLAudioSoundHandle(chunk, chan, flags & GEM_SND_RELATIVE);
 }
 
 int SDLAudio::CreateStream(Holder<SoundMgr> newMusic, bool lockAudioThread)
@@ -351,25 +391,23 @@ bool SDLAudio::CanPlay()
 
 void SDLAudio::UpdateListenerPos(int x, int y)
 {
-	// TODO
-	XPos = x;
-	YPos = y;
+	listenerPos.x = x;
+	listenerPos.y = y;
 }
 
 void SDLAudio::GetListenerPos(int& x, int& y)
 {
-	// TODO
-	x = XPos;
-	y = YPos;
+	x = listenerPos.x;
+	y = listenerPos.y;
 }
 
 void SDLAudio::buffer_callback(void *udata, uint8_t *stream, int len)
 {
 	ieDword volume = 100;
-	// Check only movie volume, since ambiens aren't supported anyway
+	// Check only movie volume, since ambiens aren't supported right now
 	core->GetDictionary()->Lookup("Volume Movie", volume);
 
-	// No point of bothering if it's off anyway. Hope nothing breaks..
+	// No point of bothering if it's off anyway
 	if (volume == 0) {
 		return;
 	}
