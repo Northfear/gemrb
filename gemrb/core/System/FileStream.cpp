@@ -23,6 +23,7 @@
 #include "win32def.h"
 
 #include "Interface.h"
+#include "../platforms/vita/libc_bridge.h"
 
 namespace GemRB {
 
@@ -106,6 +107,281 @@ public:
 	bool SeekEnd(int offset)
 	{
 		return SetFilePointer(file, offset, NULL, FILE_END) != 0xffffffff;
+	}
+};
+#elif defined (VITA_LIBC)
+struct FileStream::File {
+private:
+	FILE* file;
+public:
+	File() : file(NULL) {}
+	void Close() { sceLibcBridge_fclose(file); }
+	size_t Length() {
+		sceLibcBridge_fseek(file, 0, SEEK_END);
+		size_t size = sceLibcBridge_ftell(file);
+		sceLibcBridge_fseek(file, 0, SEEK_SET);
+		return size;
+	}
+	bool OpenRO(const char *name) {
+		return (file = sceLibcBridge_fopen(name, "rb"));
+	}
+	bool OpenRW(const char *name) {
+		return (file = sceLibcBridge_fopen(name, "r+b"));
+	}
+	bool OpenNew(const char *name) {
+		return (file = sceLibcBridge_fopen(name, "wb"));
+	}
+	size_t Read(void* ptr, size_t length) {
+		return sceLibcBridge_fread(ptr, 1, length, file);
+	}
+	size_t Write(const void* ptr, size_t length) {
+		return sceLibcBridge_fwrite(ptr, 1, length, file);
+	}
+	bool SeekStart(int offset)
+	{
+		return !sceLibcBridge_fseek(file, offset, SEEK_SET);
+	}
+	bool SeekCurrent(int offset)
+	{
+		return !sceLibcBridge_fseek(file, offset, SEEK_CUR);
+	}
+	bool SeekEnd(int offset)
+	{
+		return !sceLibcBridge_fseek(file, offset, SEEK_END);
+	}
+};
+#elif defined (VITA_FIOS)
+#include <psp2/fios2.h>
+#include <psp2/kernel/clib.h> 
+
+struct FileStream::File {
+private:
+	SceFiosFH file;
+
+public:
+	File() : file(0) {}
+	void Close() {
+		sceFiosFHCloseSync(NULL, file);
+	}
+	size_t Length() {
+		sceFiosFHSeek(file, 0, SCE_FIOS_SEEK_END);
+		size_t size = sceFiosFHTell(file);
+		sceFiosFHSeek(file, 0, SCE_FIOS_SEEK_SET);
+		return size;
+	}
+	bool OpenRO(const char *name) {
+		int res;
+		SceFiosOpenParams params = SCE_FIOS_OPENPARAMS_INITIALIZER;
+		params.openFlags = SCE_FIOS_O_RDONLY;
+		res = sceFiosFHOpenSync(NULL, &file, name, &params);
+		if (res != SCE_FIOS_OK) {
+			return false;
+		}
+		return true;
+	}
+	bool OpenRW(const char *name) {
+		int res;
+		SceFiosOpenParams params = SCE_FIOS_OPENPARAMS_INITIALIZER;
+		params.openFlags = SCE_FIOS_O_RDWR;
+		res = sceFiosFHOpenSync(NULL, &file, name, &params);
+		if (res != SCE_FIOS_OK) {
+			return false;
+  		}
+		return true;
+	}
+	bool OpenNew(const char *name) {
+		int res;
+		SceFiosOpenParams params = SCE_FIOS_OPENPARAMS_INITIALIZER;
+		params.openFlags = SCE_FIOS_O_WRONLY | SCE_FIOS_O_CREAT | SCE_FIOS_O_TRUNC;
+		res = sceFiosFHOpenSync(NULL, &file, name, &params);
+		if (res != SCE_FIOS_OK) {
+			return false;
+  		}
+		return true;
+	}
+	size_t Read(void* ptr, size_t length) {
+		SceFiosOpAttr attr = SCE_FIOS_OPATTR_INITIALIZER;
+		attr.deadline = SCE_FIOS_TIME_EARLIEST;
+		attr.priority = SCE_FIOS_PRIO_MAX;
+		//attr.opflags = SCE_FIOS_OPFLAG_NOCACHE;
+		return sceFiosFHReadSync(&attr, file, ptr, (SceFiosSize)length);
+	}
+	size_t Write(const void* ptr, size_t length) {
+		return sceFiosFHWriteSync(NULL, file, ptr, (SceFiosSize)length);
+	}
+	bool SeekStart(int offset)
+	{
+		return !sceFiosFHSeek(file, static_cast<SceFiosOffset>(offset), SCE_FIOS_SEEK_SET);
+	}
+	bool SeekCurrent(int offset)
+	{
+		return !sceFiosFHSeek(file, static_cast<SceFiosOffset>(offset), SCE_FIOS_SEEK_CUR);
+	}
+	bool SeekEnd(int offset)
+	{
+		return !sceFiosFHSeek(file, static_cast<SceFiosOffset>(offset), SCE_FIOS_SEEK_END);
+	}
+};
+#elif defined (VITA_CACHED)
+#include <psp2/kernel/clib.h> 
+
+#define FILE_CACHE_SIZE 128 * 1024 * 1024
+#define MAX_CACHED_FILE_SIZE 16 * 1024 * 1024
+
+struct CachedFile
+{
+	char fileName[80];
+	size_t fileSize;
+	char *fileContent;
+	int inUse = 0;
+};
+
+std::vector<CachedFile*> cachedFiles;
+
+void FreeFileCache()
+{
+	for (uint32_t i = 0; i < cachedFiles.size(); i++)
+	{
+		if (cachedFiles[i]->inUse <= 0)
+		{
+			free(cachedFiles[i]->fileContent);
+			free(cachedFiles[i]);
+			break;
+		}
+	}
+}
+
+size_t GetFileCacheSize()
+{
+	size_t totalSize = 0;
+	for (uint32_t i = 0; i < cachedFiles.size(); i++) {
+		totalSize += cachedFiles[i]->fileSize;
+	}
+	return totalSize;
+}
+
+CachedFile* GetCachedFileByName(const char *name)
+{
+	for (uint32_t i = 0; i < cachedFiles.size(); i++)
+	{
+		if (strcmp(cachedFiles[i]->fileName, name) == 0)
+		{
+			return cachedFiles[i];
+		}
+	}
+	return nullptr;
+}
+
+void AddCachedFile(const char *name, char *content, size_t size)
+{
+	CachedFile* cachedFile = new CachedFile();
+	strcpy(cachedFile->fileName, name);
+	cachedFile->fileContent = content;
+	cachedFile->fileSize = size;
+	cachedFiles.push_back(cachedFile);
+}
+
+struct FileStream::File {
+private:
+	FILE *file;
+	bool cached = false;
+	char *fileContent;
+	size_t cachedOffset = 0;
+	size_t fileSize = 0;
+	CachedFile* cachedFile;
+public:
+	File() : file(NULL) {}
+	void Close() { 
+		if (cached) {
+			//sceClibPrintf("FILE FREED!\n");
+			cachedFile->inUse--;
+		}
+		fclose(file); 
+	}
+	size_t Length() {
+		fseek(file, 0, SEEK_END);
+		size_t size = ftell(file);
+		fseek(file, 0, SEEK_SET);
+		return size;
+	}
+	bool OpenRO(const char *name) {
+		file = fopen(name, "rb");
+		fileSize = Length();
+		if (fileSize <= MAX_CACHED_FILE_SIZE)
+		{
+			cachedFile = GetCachedFileByName(name);
+			if (cachedFile) {
+				fileContent = cachedFile->fileContent;
+				//sceClibPrintf("FILE FOUND IN CACHE! %s\n", name);
+			} else {
+				fileContent = (char*)malloc(fileSize + 1);
+				fread(fileContent, 1, fileSize, file);
+				AddCachedFile(name, fileContent, fileSize);
+				cachedFile = GetCachedFileByName(name);
+				//sceClibPrintf("FILE ADDED TO CACHE! %s\n", name);
+			}
+
+			cachedFile->inUse++;
+			cached = true;
+			cachedOffset = 0;
+			//sceClibPrintf("FILE CACHED: %s SIZE: %zu\n", name, fileSize);
+			//sceClibPrintf("TOTAL CACHE SIZE: %zu\n", GetFileCacheSize());
+		}
+		return file;
+	}
+	bool OpenRW(const char *name) {
+		return (file = fopen(name, "r+b"));
+	}
+	bool OpenNew(const char *name) {
+		return (file = fopen(name, "wb"));
+	}
+	size_t Read(void* ptr, size_t length) {
+		if (cached) {
+			if (length + cachedOffset > fileSize)
+				length = fileSize - cachedOffset;
+			memcpy( ptr, fileContent + cachedOffset, length );
+			cachedOffset += length;
+			return length;
+		} else {
+			return fread(ptr, 1, length, file);
+		}
+	}
+	size_t Write(const void* ptr, size_t length) {
+		return fwrite(ptr, 1, length, file);
+	}
+	bool SeekStart(int offset)
+	{
+		if (cached) {
+			cachedOffset = offset;
+			return true;
+		}
+		else {
+			return !fseek(file, offset, SEEK_SET);
+		}
+	}
+	bool SeekCurrent(int offset)
+	{
+		if (cached) {
+			cachedOffset += offset;
+			if (cachedOffset > fileSize)
+				cachedOffset = fileSize;
+			return true;
+		}
+		else {
+			return !fseek(file, offset, SEEK_CUR);
+		}
+	}
+	bool SeekEnd(int offset)
+	{
+		if (cached) {
+			cachedOffset = fileSize + offset;
+			if (cachedOffset > fileSize)
+				cachedOffset = fileSize;
+			return true;
+		}
+		else {
+			return !fseek(file, offset, SEEK_END);
+		}
 	}
 };
 #else
