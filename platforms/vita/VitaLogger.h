@@ -1,5 +1,5 @@
 /* GemRB - Infinity Engine Emulator
- * Copyright (C) 2012 The GemRB Project
+ * Copyright (C) 2003 The GemRB Project
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -15,26 +15,24 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-#ifndef __GemRB__MessageWindowLogger__
-#define __GemRB__MessageWindowLogger__
 
-#include "System/Logger.h" // for log_color
+#ifndef LOGGER_VITA_H
+#define LOGGER_VITA_H
+
+#include "System/Logger.h"
 
 namespace GemRB {
 
-class GEM_EXPORT MessageWindowLogger : public Logger {
+class GEM_EXPORT VitaLogger : public Logger::LogWriter {
 public:
-	MessageWindowLogger( log_level = WARNING ); // this logger has a diffrent default level than its base class.
-	virtual ~MessageWindowLogger();
+	VitaLogger(log_level level) : Logger::LogWriter(level) {};
+
 protected:
-	void LogInternal(log_level level, const char* owner, const char* message, log_color color);
-private:
-	void PrintStatus(bool);
+	void WriteLogMessage(const Logger::LogMessage& msg) override;
 };
 
-// if create is true then getMessageWindowLogger will create and attach the message window logger
-// if it doesnt exist; otherwise simply returns a pointer to the logger.
-GEM_EXPORT Logger* getMessageWindowLogger( bool create = false);
+Logger::WriterPtr createVitaLogger();
+
 }
 
-#endif /* defined(__GemRB__MessageWindowLogger__) */
+#endif

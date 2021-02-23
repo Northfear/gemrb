@@ -61,7 +61,6 @@
 #include "Scriptable/Door.h"
 #include "Scriptable/InfoPoint.h"
 #include "System/FileStream.h"
-#include "System/Logger/MessageWindowLogger.h"
 #include "System/VFS.h"
 
 #include <algorithm>
@@ -10105,18 +10104,12 @@ PyDoc_STRVAR( GemRB_MessageWindowDebug__doc,
 
 static PyObject* GemRB_MessageWindowDebug(PyObject * /*self*/, PyObject* args)
 {
-	int logLevel;
+	log_level logLevel;
 	if (!PyArg_ParseTuple( args, "i", &logLevel )) {
 		return AttributeError( GemRB_MessageWindowDebug__doc );
 	}
 
-	if (logLevel == -1) {
-		RemoveLogger(getMessageWindowLogger());
-	} else {
-		// convert it to the internal representation
-		getMessageWindowLogger(true)->SetLogLevel((log_level)logLevel);
-	}
-
+	SetMessageWindowLogLevel(logLevel);
 	Py_RETURN_NONE;
 }
 
@@ -15440,8 +15433,7 @@ static PyObject* GemRB_AddGameTypeHint(PyObject* /*self*/, PyObject* args)
 
 	if (weight > gametype_hint_weight) {
 		gametype_hint_weight = weight;
-		strncpy(gametype_hint, type, sizeof(gametype_hint)-1);
-		// I assume the '\0' in the end of gametype_hint
+		strlcpy(gametype_hint, type, sizeof(gametype_hint));
 	}
 
 	Py_RETURN_NONE;

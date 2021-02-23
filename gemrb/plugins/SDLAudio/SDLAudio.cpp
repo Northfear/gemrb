@@ -418,7 +418,7 @@ void SDLAudio::buffer_callback(void *udata, uint8_t *stream, int len)
 	SDLAudio *driver = (SDLAudio *)udata;
 	SDL_LockMutex(driver->MusicMutex);
 	unsigned int remaining = len;
-	while (remaining && driver->buffers.size() > 0) {
+	while (remaining && !driver->buffers.empty()) {
 		unsigned int avail = driver->buffers[0].size - driver->curr_buffer_offset;
 		if (avail > remaining) {
 			// more data available in this buffer than we need

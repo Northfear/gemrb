@@ -1343,7 +1343,6 @@ int Interface::Init(InterfaceConfig* config)
 	CONFIG_INT("MouseFeedback", MouseFeedback = );
 	CONFIG_INT("GamepadPointerSpeed", GamepadPointerSpeed = );
 	CONFIG_INT("VitaKeepAspectRatio", VitaKeepAspectRatio = );
-	CONFIG_INT("Logging", Logging = );
 
 #undef CONFIG_INT
 
@@ -1470,6 +1469,10 @@ int Interface::Init(InterfaceConfig* config)
 		return GEM_ERROR;
 	}
 	if (!KeepCache) DelTree((const char *) CachePath, false);
+	
+	// potentially disable logging before plugins are loaded (the log file is a plugin)
+	value = config->GetValueForKey("Logging");
+	if (value) ToggleLogging(atoi(value));
 
 	Log(MESSAGE, "Core", "Starting Plugin Manager...");
 	PluginMgr *plugin = PluginMgr::Get();
@@ -3056,7 +3059,7 @@ void Interface::GameLoop(void)
 	bool do_update = GSUpdate(update_scripts);
 
 	if (game) {
-		if ( gc && (game->selected.size() > 0) ) {
+		if (gc && !game->selected.empty()) {
 			gc->ChangeMap(GetFirstSelectedPC(true), false);
 		}
 		//in multi player (if we ever get to it), only the server must call this
@@ -3754,6 +3757,7 @@ bool Interface::SaveConfig()
 	if (!fs->Create(ini_path)) {
 		PathJoin(ini_path, SavePath, gemrbINI, nullptr);
 		if (!fs->Create(ini_path)) {
+			delete fs;
 			return false;
 		}
 	}
