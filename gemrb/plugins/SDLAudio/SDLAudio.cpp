@@ -124,6 +124,9 @@ bool SDLAudio::Init(void)
 
 void SDLAudio::SetAudioStreamVolume(uint8_t *stream, int len, int volume)
 {
+	// since it's at max volume by default
+	if (volume == MIX_MAX_VOLUME)
+		return;
 	uint8_t *mixData = new uint8_t[len];
 	memcpy(mixData, stream, len * sizeof(uint8_t));
 	memset(stream, 0, len); // mix audio data against silence
@@ -171,8 +174,8 @@ void SDLAudio::music_callback(void *udata, uint8_t *stream, int len)
 		}
 	} while(true);
 
-	SetAudioStreamVolume(mixerStream, mixerLen, MIX_MAX_VOLUME * volume / 100);
 	SDL_UnlockMutex(driver->MusicMutex);
+	SetAudioStreamVolume(mixerStream, mixerLen, MIX_MAX_VOLUME * volume / 100);
 }
 
 bool SDLAudio::evictBuffer()
@@ -441,8 +444,8 @@ void SDLAudio::buffer_callback(void *udata, uint8_t *stream, int len)
 		memset(stream, 0, remaining);
 	}
 
-	SetAudioStreamVolume(mixerStream, mixerLen, MIX_MAX_VOLUME * volume / 100);
 	SDL_UnlockMutex(driver->MusicMutex);
+	SetAudioStreamVolume(mixerStream, mixerLen, MIX_MAX_VOLUME * volume / 100);
 }
 
 //This one is used for movies and ambients.

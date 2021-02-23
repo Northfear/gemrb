@@ -20,14 +20,11 @@
 
 // GemRB.cpp : Defines the entry point for the application.
 
-#include <clocale> //language encoding
-
 #include "Interface.h"
 #include "VitaLogger.h"
 
 #include <malloc.h>
 #include <python2.7/Python.h>
-#include <SDL.h>
 
 #include <psp2/kernel/processmgr.h>
 #include <psp2/power.h>
@@ -74,14 +71,13 @@ int main(int argc, char* argv[])
 	scePowerSetGpuXbarClockFrequency(166);
 
 	sceKernelChangeThreadPriority(0, 64);
-	sceKernelChangeThreadCpuAffinityMask(0, 0x40000);
-
-	mallopt(M_TRIM_THRESHOLD, 20 * 1024);
+	//sceKernelChangeThreadCpuAffinityMask(0, 0x40000);
 
 	// Selecting game config from init params
 	VitaSetArguments(&argc, &argv);
 
 	setlocale(LC_ALL, "");
+	mallopt(M_TRIM_THRESHOLD, 20 * 1024);
 
 	AddLogWriter(createVitaLogger());
 	ToggleLogging(true);
