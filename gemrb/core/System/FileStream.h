@@ -33,6 +33,9 @@
 #include "exports.h"
 #include "globals.h"
 
+#include <psp2/kernel/clib.h>
+#include "FileCache.h"
+
 namespace GemRB {
 
 /**
@@ -40,6 +43,136 @@ namespace GemRB {
  * Reads and writes data from/to files on a filesystem
  */
 
+#ifdef VITA
+struct File {
+private:
+	FILE *file = nullptr;
+	bool cached = false;
+	size_t cachedOffset = 0;
+	CachedFile *cachedFile = nullptr;
+public:
+	File(FILE* f) : file(f) {}
+	File() = default;
+	File(const File&) = delete;
+	File(File&& f) noexcept {
+		file = f.file;
+		f.file = nullptr;
+	}
+	~File() {
+		if (cached) {
+			FileCache::ReleaseFile(cachedFile);
+		}
+		if (file) fclose(file); 
+	}
+	
+	File& operator=(const File&) = delete;
+	File& operator=(File&& f) noexcept {
+		if (&f != this) {
+			std::swap(file, f.file);
+		}
+		return *this;
+	}
+
+	size_t Length() {
+		if (cached) {
+			size_t size =  cachedFile->fileSize;
+			cachedOffset = 0;
+			return size;
+		}
+
+		fseek(file, 0, SEEK_END);
+		size_t size = ftell(file);
+		fseek(file, 0, SEEK_SET);
+		return size;
+	}
+	bool OpenRO(const char *name) {
+		file = fopen(name, "rb");
+
+		if (cached) {
+			// Reopened? After writes? Better remove it from cache and read again..
+			sceClibPrintf("_________________TRY REMOVING! %s\n", name);
+			FileCache::TryRemoveFile(cachedFile);
+			cached = false;
+		}
+
+		if (file) {
+			std::string stringName = std::string(name);
+			size_t fileSize = Length();
+			cachedFile = FileCache::GetCachedFileByName(stringName);
+
+			if (!cachedFile) {
+				cachedFile = FileCache::AddCachedFile(stringName, fileSize);
+
+				if (cachedFile) {
+					fread(cachedFile->fileContent, 1, fileSize, file);
+					sceClibPrintf("---------------------------FILE ADDED TO CACHE! %s SIZE: %zu\n", name, fileSize);
+					sceClibPrintf("---------------------------TOTAL CACHE SIZE: %zu\n", FileCache::GetFileCacheSize());
+				}
+			}
+
+			if (cachedFile) {
+				cached = true;
+				cachedOffset = 0;
+			} else {
+				sceClibPrintf("_________________NOT ADDED TO CACHE! %s SIZE: %zu\n", name, fileSize);
+			}
+		}
+
+		return file;
+	}
+	bool OpenRW(const char *name) {
+		return (file = fopen(name, "r+b"));
+	}
+	bool OpenNew(const char *name) {
+		return (file = fopen(name, "wb"));
+	}
+	size_t Read(void* ptr, size_t length) {
+		if (cached) {
+			if (cachedOffset + length > cachedFile->fileSize)
+				length = cachedFile->fileSize - cachedOffset;
+			memcpy(ptr, cachedFile->fileContent + cachedOffset, length);
+			cachedOffset += length;
+			cachedFile->UpdateAccessTime();
+			return length;
+		} else {
+			return fread(ptr, 1, length, file);
+		}
+	}
+	size_t Write(const void* ptr, size_t length) {
+		return fwrite(ptr, 1, length, file);
+	}
+	bool SeekStart(int offset)
+	{
+		if (cached) {
+			cachedOffset = offset;
+			return true;
+		}
+		else {
+			return !fseek(file, offset, SEEK_SET);
+		}
+	}
+	bool SeekCurrent(int offset)
+	{
+		if (cached) {
+			cachedOffset += offset;
+			return true;
+		}
+		else {
+			return !fseek(file, offset, SEEK_CUR);
+		}
+	}
+	bool SeekEnd(int offset)
+	{
+		if (cached) {
+			cachedOffset = cachedFile->fileSize + offset;
+			return true;
+		}
+		else {
+			return !fseek(file, offset, SEEK_END);
+		}
+	}
+};
+#else
 struct File {
 private:
 	FILE* file = nullptr;
@@ -97,6 +230,7 @@ public:
 		return !fseek(file, offset, SEEK_END);
 	}
 };
+#endif
 
 class GEM_EXPORT FileStream : public DataStream {
 private:

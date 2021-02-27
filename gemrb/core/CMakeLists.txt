@@ -153,6 +153,13 @@ IF(SUPPORTS_MEMSTREAM)
 	)
 ENDIF()
 
+if(VITA)
+	SET(gemrb_core_LIB_SRCS
+		${gemrb_core_LIB_SRCS}
+		System/FileCache.cpp
+	)
+ENDIF()
+
 IF(NOT STATIC_LINK)
 	SET(gemrb_core_LIB_SRCS
 		${gemrb_core_LIB_SRCS}
