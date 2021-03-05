@@ -33,8 +33,11 @@
 #include "exports.h"
 #include "globals.h"
 
+#ifdef VITA
 #include <psp2/kernel/clib.h>
 #include "FileCache.h"
+#include "../platforms/vita/libc_bridge.h"
+#endif
 
 namespace GemRB {
 
@@ -44,6 +47,65 @@ namespace GemRB {
  */
 
 #ifdef VITA
+struct File {
+private:
+	FILE* file = nullptr;
+	bool opened = false;
+public:
+	File(FILE* f) : file(f) {}
+	File() = default;
+	File(const File&) = delete;
+	File(File&& f) noexcept {
+		file = f.file;
+		f.file = nullptr;
+	}
+	~File() {
+		if (file) sceLibcBridge_fclose(file);
+	}
+	
+	File& operator=(const File&) = delete;
+	File& operator=(File&& f) noexcept {
+		if (&f != this) {
+			std::swap(file, f.file);
+		}
+		return *this;
+	}
+
+	size_t Length() {
+		sceLibcBridge_fseek(file, 0, SEEK_END);
+		size_t size = sceLibcBridge_ftell(file);
+		sceLibcBridge_fseek(file, 0, SEEK_SET);
+		return size;
+	}
+	bool OpenRO(const char *name) {
+		return (file = sceLibcBridge_fopen(name, "rb"));
+	}
+	bool OpenRW(const char *name) {
+		return (file = sceLibcBridge_fopen(name, "r+b"));
+	}
+	bool OpenNew(const char *name) {
+		return (file = sceLibcBridge_fopen(name, "wb"));
+	}
+	size_t Read(void* ptr, size_t length) {
+		return sceLibcBridge_fread(ptr, 1, length, file);
+	}
+	size_t Write(const void* ptr, size_t length) {
+		return sceLibcBridge_fwrite(ptr, 1, length, file);
+	}
+	bool SeekStart(int offset)
+	{
+		return !sceLibcBridge_fseek(file, offset, SEEK_SET);
+	}
+	bool SeekCurrent(int offset)
+	{
+		return !sceLibcBridge_fseek(file, offset, SEEK_CUR);
+	}
+	bool SeekEnd(int offset)
+	{
+		return !sceLibcBridge_fseek(file, offset, SEEK_END);
+	}
+};
+#elif defined(VITA_CACHE)
 struct File {
 private:
 	FILE *file = nullptr;
@@ -62,7 +124,7 @@ public:
 		if (cached) {
 			FileCache::ReleaseFile(cachedFile);
 		}
-		if (file) fclose(file); 
+		if (file) sceLibcBridge_fclose(file); 
 	}
 	
 	File& operator=(const File&) = delete;
@@ -80,13 +142,13 @@ public:
 			return size;
 		}
 
-		fseek(file, 0, SEEK_END);
-		size_t size = ftell(file);
-		fseek(file, 0, SEEK_SET);
+		sceLibcBridge_fseek(file, 0, SEEK_END);
+		size_t size = sceLibcBridge_ftell(file);
+		sceLibcBridge_fseek(file, 0, SEEK_SET);
 		return size;
 	}
 	bool OpenRO(const char *name) {
-		file = fopen(name, "rb");
+		file = sceLibcBridge_fopen(name, "rb");
 
 		if (cached) {
 			// Reopened? After writes? Better remove it from cache and read again..
@@ -104,7 +166,7 @@ public:
 				cachedFile = FileCache::AddCachedFile(stringName, fileSize);
 
 				if (cachedFile) {
-					fread(cachedFile->fileContent, 1, fileSize, file);
+					sceLibcBridge_fread(cachedFile->fileContent, 1, fileSize, file);
 					sceClibPrintf("---------------------------FILE ADDED TO CACHE! %s SIZE: %zu\n", name, fileSize);
 					sceClibPrintf("---------------------------TOTAL CACHE SIZE: %zu\n", FileCache::GetFileCacheSize());
 				}
@@ -121,10 +183,10 @@ public:
 		return file;
 	}
 	bool OpenRW(const char *name) {
-		return (file = fopen(name, "r+b"));
+		return (file = sceLibcBridge_fopen(name, "r+b"));
 	}
 	bool OpenNew(const char *name) {
-		return (file = fopen(name, "wb"));
+		return (file = sceLibcBridge_fopen(name, "wb"));
 	}
 	size_t Read(void* ptr, size_t length) {
 		if (cached) {
@@ -135,11 +197,11 @@ public:
 			cachedFile->UpdateAccessTime();
 			return length;
 		} else {
-			return fread(ptr, 1, length, file);
+			return sceLibcBridge_fread(ptr, 1, length, file);
 		}
 	}
 	size_t Write(const void* ptr, size_t length) {
-		return fwrite(ptr, 1, length, file);
+		return sceLibcBridge_fwrite(ptr, 1, length, file);
 	}
 	bool SeekStart(int offset)
 	{
@@ -148,7 +210,7 @@ public:
 			return true;
 		}
 		else {
-			return !fseek(file, offset, SEEK_SET);
+			return !sceLibcBridge_fseek(file, offset, SEEK_SET);
 		}
 	}
 	bool SeekCurrent(int offset)
@@ -158,7 +220,7 @@ public:
 			return true;
 		}
 		else {
-			return !fseek(file, offset, SEEK_CUR);
+			return !sceLibcBridge_fseek(file, offset, SEEK_CUR);
 		}
 	}
 	bool SeekEnd(int offset)
@@ -168,7 +230,7 @@ public:
 			return true;
 		}
 		else {
-			return !fseek(file, offset, SEEK_END);
+			return !sceLibcBridge_fseek(file, offset, SEEK_END);
 		}
 	}
 };

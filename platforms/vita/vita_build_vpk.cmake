@@ -8,9 +8,11 @@ set(VITA_TITLEID  "GEMRB0001")
 # Optional version string to show in LiveArea's more info screen
 string(REGEX REPLACE "^(.)\.(.)\.(.).*$" "0\\1.\\2\\3" VITA_VERSION ${GEMRB_VERSION})
 set(DOLCE_MKSFOEX_FLAGS "${DOLCE_MKSFOEX_FLAGS} -d ATTRIBUTE2=12")
+# set sceLibc heap size
+set(DOLCE_ELF_CREATE_FLAGS "${DOLCE_ELF_CREATE_FLAGS} -h 2097152")
 
 ## Create Vita files
-dolce_create_self(${PROJECT_NAME}.self ${PROJECT_NAME})
+dolce_create_self(${PROJECT_NAME}.self ${PROJECT_NAME} UNSAFE)
 # The FILE directive lets you add additional files to the VPK, the syntax is
 # FILE src_path dst_path_in_vpk. In this case, we add the LiveArea paths.
 dolce_create_vpk(${PROJECT_NAME}.vpk ${VITA_TITLEID} ${PROJECT_NAME}.self

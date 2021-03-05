@@ -138,17 +138,14 @@ static void closedir(DIR* dirp)
 
 #ifdef VITA
 
+#define dirent SceIoDirent
+
 using namespace GemRB;
 
 struct DIR
 {
 	bool is_first;
 	SceUID descriptor;
-};
-
-struct dirent
-{
-	char d_name[_MAX_PATH];
 };
 
 // buffer which readdir returns
@@ -175,10 +172,8 @@ static dirent* readdir(DIR *dirp)
 		dirp->is_first = 0;
 		strncpy(de.d_name, ".", 1);
 	} else {
-		SceIoDirent dir;
-		if (sceIoDread(dirp->descriptor, &dir) <= 0)
+		if (sceIoDread(dirp->descriptor, &de) <= 0)
 			return NULL;
-		strncpy(de.d_name, dir.d_name, 256);
 	}
 
 	return &de;
@@ -656,11 +651,20 @@ void DirectoryIterator::SetFilterPredicate(FileFilterPredicate* p, bool chain)
 
 bool DirectoryIterator::IsDirectory()
 {
+#ifdef VITA
+// MUCH faster than getting stat again
+if (Entry)
+{
+	dirent* entry = static_cast<dirent*>(Entry);
+	return SCE_STM_ISDIR(entry->d_stat.st_mode);
+}
+#else
 	char dtmp[_MAX_PATH];
 	GetFullPath(dtmp);
 	//this is needed on windows!!!
 	FixPath(dtmp, false);
 	return dir_exists(dtmp);
+#endif
 }
 
 const char* DirectoryIterator::GetName()
