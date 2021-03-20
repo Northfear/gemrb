@@ -136,14 +136,16 @@ int main(int argc, char* argv[])
 
 	sceKernelChangeThreadPriority(0, 64);
 	//sceKernelChangeThreadCpuAffinityMask(0, 0x40000);
+
+	mallopt(M_TRIM_THRESHOLD, 20 * 1024);
+
 	fios_init();
 
 	// Selecting game config from init params
 	VitaSetArguments(&argc, &argv);
 
 	setlocale(LC_ALL, "");
-	mallopt(M_TRIM_THRESHOLD, 20 * 1024);
-
+	
 	AddLogWriter(createVitaLogger());
 	ToggleLogging(true);
 

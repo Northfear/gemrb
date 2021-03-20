@@ -18,17 +18,12 @@
 *
 */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #include "Interface.h"
 
 #include "defsounds.h" // for DS_TOOLTIP
 #include "exports.h"
 #include "globals.h"
 #include "strrefs.h"
-#include "win32def.h"
 #include "ie_cursors.h"
 
 #include "ActorMgr.h"
@@ -87,10 +82,6 @@
 #include "System/FileStream.h"
 #include "System/VFS.h"
 #include "System/StringBuffer.h"
-
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
 
 #include <vector>
 
@@ -350,16 +341,10 @@ Interface::~Interface(void)
 	DragItem(NULL,NULL);
 	delete AreaAliasTable;
 
-	if (music) {
-		music->HardEnd();
-	}
-	// stop any ambients which are still enqueued
-	if (AudioDriver) {
-		AmbientMgr *ambim = AudioDriver->GetAmbientMgr();
-		if (ambim) ambim->deactivate();
-	}
+	AudioDriver.release();
+
 	//destroy the highest objects in the hierarchy first!
-	delete game;
+	assert (game == nullptr);
 	delete calendar;
 	delete worldmap;
 	delete keymap;
@@ -487,7 +472,6 @@ Interface::~Interface(void)
 	// Removing all stuff from Cache, except bifs
 	if (!KeepCache) DelTree((const char *) CachePath, true);
 
-	AudioDriver.release();
 	video.release();
 }
 
@@ -1040,6 +1024,7 @@ void Interface::Main()
 		if (TickHook)
 			TickHook();
 	} while (video->SwapBuffers() == GEM_OK && !(QuitFlag&QF_KILL));
+	QuitGame(0);
 	gamedata->FreePalette( palette );
 }
 
