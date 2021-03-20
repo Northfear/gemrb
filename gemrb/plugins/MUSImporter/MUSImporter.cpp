@@ -178,7 +178,7 @@ bool MUSImporter::OpenPlaylist(const char* name)
 	return true;
 }
 /** Start the PlayList Music Execution */
-void MUSImporter::Start(bool lockAudioThread)
+void MUSImporter::Start()
 {
 	if (!Playing) {
 		PLpos = 0;
@@ -195,7 +195,7 @@ void MUSImporter::Start(bool lockAudioThread)
 			if ((unsigned int) PLnext >= playlist.size())
 				PLnext = 0;
 		}
-		PlayMusic(PLpos, lockAudioThread);
+		PlayMusic( PLpos );
 		core->GetAudioDrv()->Play();
 		lastSound = playlist[PLpos].soundID;
 		Playing = true;
@@ -208,7 +208,7 @@ void MUSImporter::End()
 		if (playlist.empty()) return;
 		if (playlist[PLpos].PLEnd[0] != 0) {
 			if (stricmp( playlist[PLpos].PLEnd, "end" ) != 0)
-				PlayMusic(playlist[PLpos].PLEnd, true);
+				PlayMusic( playlist[PLpos].PLEnd );
 		}
 		PLnext = -1;
 	}
@@ -243,7 +243,7 @@ int MUSImporter::SwitchPlayList(const char* name, bool Hard)
 	}
 
 	if (OpenPlaylist(name)) {
-		Start(true);
+		Start();
 		return 0;
 	}
 
@@ -256,7 +256,7 @@ void MUSImporter::PlayNext()
 		return;
 	}
 	if (PLnext != -1) {
-		PlayMusic(PLnext, false);
+		PlayMusic( PLnext );
 		PLpos = PLnext;
 		if (playlist[PLpos].PLLoop[0] != 0) {
 			for (unsigned int i = 0; i < playlist.size(); i++) {
@@ -280,19 +280,19 @@ void MUSImporter::PlayNext()
 		//start new music after the old faded out
 		if (PLNameNew[0]) {
 			if (OpenPlaylist(PLNameNew)) {
-				Start(false);
+				Start();
 			}
 			PLNameNew[0]='\0';
 		}
 	}
 }
 
-void MUSImporter::PlayMusic(int pos, bool lockAudioThread)
+void MUSImporter::PlayMusic(int pos)
 {
-	PlayMusic(playlist[pos].PLFile, lockAudioThread);
+	PlayMusic( playlist[pos].PLFile );
 }
 
-void MUSImporter::PlayMusic(char* name, bool lockAudioThread)
+void MUSImporter::PlayMusic(char* name)
 {
 	char FName[_MAX_PATH];
 	if (strnicmp( name, "mx9000", 6 ) == 0) { //iwd2
@@ -309,7 +309,7 @@ void MUSImporter::PlayMusic(char* name, bool lockAudioThread)
 
 	ResourceHolder<SoundMgr> sound = GetResourceHolder<SoundMgr>(FName, manager);
 	if (sound) {
-		int soundID = core->GetAudioDrv()->CreateStream(sound, lockAudioThread);
+		int soundID = core->GetAudioDrv()->CreateStream( sound );
 		if (soundID == -1) {
 			core->GetAudioDrv()->Stop();
 		}

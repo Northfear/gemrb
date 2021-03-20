@@ -3588,7 +3588,7 @@ int Interface::PlayMovie(const char* ResRef)
 		free(strrefs);
 	//restarting music
 	if (music)
-		music->Start(true);
+		music->Start();
 	if (ambim) ambim->activate();
 	//this will fix redraw all windows as they looked like
 	//before the movie

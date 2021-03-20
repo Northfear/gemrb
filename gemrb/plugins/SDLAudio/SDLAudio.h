@@ -25,14 +25,13 @@
 #include "LRUCache.h"
 
 #include <vector>
-#include <atomic>
+#include <mutex>
+
 #include <SDL_mixer.h>
 
 #define MIXER_CHANNELS 16
 #define BUFFER_CACHE_SIZE 100
 #define AUDIO_DISTANCE_ROLLOFF_MOD 1.3
-
-struct SDL_mutex;
 
 namespace GemRB {
 
@@ -69,7 +68,7 @@ public:
 	bool Init(void);
 	Holder<SoundHandle> Play(const char* ResRef, unsigned int channel,
 		int XPos, int YPos, unsigned int flags = 0, unsigned int *length = 0);
-	int CreateStream(Holder<SoundMgr>, bool lockAudioThread);
+	int CreateStream(Holder<SoundMgr>);
 	bool Play();
 	bool Stop();
 	bool Pause() { return true; } /*not implemented*/
@@ -101,7 +100,7 @@ private:
 	Point listenerPos;
 	Holder<SoundMgr> MusicReader;
 
-	std::atomic<bool> MusicPlaying;
+	bool MusicPlaying;
 	unsigned int curr_buffer_offset;
 	std::vector<BufferedData> buffers;
 
@@ -109,7 +108,7 @@ private:
 	unsigned short audio_format;
 	int audio_channels;
 
-	SDL_mutex *MusicMutex;
+	std::recursive_mutex MusicMutex;
 	LRUCache buffercache;
 };
 

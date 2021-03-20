@@ -650,7 +650,7 @@ bool OpenALAudioDriver::Resume()
 	return true;
 }
 
-int OpenALAudioDriver::CreateStream(Holder<SoundMgr> newMusic, bool lockAudioThread)
+int OpenALAudioDriver::CreateStream(Holder<SoundMgr> newMusic)
 {
 	std::lock_guard<std::recursive_mutex> l(musicMutex);
 
@@ -663,9 +663,6 @@ int OpenALAudioDriver::CreateStream(Holder<SoundMgr> newMusic, bool lockAudioThr
 	if (MusicBuffer[0] == 0) {
 		alGenBuffers( MUSICBUFFERS, MusicBuffer );
 		if (checkALError("Unable to create music buffers", ERROR)) {
-			if (lockAudioThread) {
-				musicMutex.unlock();
-			}
 			return -1;
 		}
 	}
@@ -674,9 +671,6 @@ int OpenALAudioDriver::CreateStream(Holder<SoundMgr> newMusic, bool lockAudioThr
 		alGenSources( 1, &MusicSource );
 		if (checkALError("Unable to create music source", ERROR)) {
 			alDeleteBuffers(MUSICBUFFERS, MusicBuffer);
-			if (lockAudioThread) {
-				musicMutex.unlock();
-			}
 			return -1;
 		}
 
@@ -696,10 +690,6 @@ int OpenALAudioDriver::CreateStream(Holder<SoundMgr> newMusic, bool lockAudioThr
 		alSourcefv( MusicSource, AL_VELOCITY, SourceVel );
 		alSourcei( MusicSource, AL_LOOPING, 0 );
 		checkALError("Unable to set music parameters", WARNING);
-	}
-
-	if (lockAudioThread) {
-		musicMutex.unlock();
 	}
 
 	return 0;

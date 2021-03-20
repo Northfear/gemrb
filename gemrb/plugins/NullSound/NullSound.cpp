@@ -50,7 +50,7 @@ Holder<SoundHandle> NullSound::Play(const char*, unsigned int, int, int, unsigne
 	return Holder<SoundHandle>();
 }
 
-int NullSound::CreateStream(Holder<SoundMgr>, bool)
+int NullSound::CreateStream(Holder<SoundMgr>)
 {
 	return 0;
 }

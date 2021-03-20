@@ -34,7 +34,6 @@
 #include "System/FileStream.h"
 #include "MapReverb.h"
 
-#include <atomic>
 #include <mutex>
 #include <thread>
 
@@ -108,7 +107,7 @@ public:
 	bool Stop();
 	bool Pause();
 	bool Resume();
-	int CreateStream(Holder<SoundMgr>, bool lockAudioThread);
+	int CreateStream(Holder<SoundMgr>);
 	void UpdateListenerPos(int XPos, int YPos );
 	void GetListenerPos( int &XPos, int &YPos );
 	bool ReleaseStream(int stream, bool HardStop);
