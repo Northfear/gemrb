@@ -652,18 +652,17 @@ void DirectoryIterator::SetFilterPredicate(FileFilterPredicate* p, bool chain)
 bool DirectoryIterator::IsDirectory()
 {
 #ifdef VITA
-// MUCH faster than getting stat again
-if (Entry) {
-	dirent* entry = static_cast<dirent*>(Entry);
-	return SCE_STM_ISDIR(entry->d_stat.st_mode);
-}
-#else
+	// MUCH faster than getting stat again
+	if (Entry) {
+		dirent* entry = static_cast<dirent*>(Entry);
+		return SCE_STM_ISDIR(entry->d_stat.st_mode);
+	}
+#endif
 	char dtmp[_MAX_PATH];
 	GetFullPath(dtmp);
 	//this is needed on windows!!!
 	FixPath(dtmp, false);
 	return dir_exists(dtmp);
-#endif
 }
 
 const char* DirectoryIterator::GetName()
