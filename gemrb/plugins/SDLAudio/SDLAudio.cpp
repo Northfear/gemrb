@@ -106,7 +106,7 @@ bool SDLAudio::Init(void)
 	}
 
 	int result = Mix_AllocateChannels(MIXER_CHANNELS);
-	if( result < 0 ) {
+	if (result < 0) {
 		Log(ERROR, "SDLAudio", "Unable to allocate mixing channels: %s\n", SDL_GetError());
 		return false;
 	}
@@ -146,7 +146,8 @@ void SDLAudio::music_callback(void *udata, uint8_t *stream, int len)
 	driver->MusicMutex.lock();
 
 	do {
-		// TODO: conversion? mutexes? sanity checks? :)
+		std::lock_guard<std::recursive_mutex> l(driver->MusicMutex);
+
 		int num_samples = len / 2;
 		int cnt = driver->MusicReader->read_samples(( short* ) stream, num_samples);
 
@@ -158,7 +159,7 @@ void SDLAudio::music_callback(void *udata, uint8_t *stream, int len)
 		Log(MESSAGE, "SDLAudio", "Playing Next Music");
 		core->GetMusicMgr()->PlayNext();
 
-		stream = stream + cnt;
+		stream = stream + (cnt * 2);
 		len = len - (cnt * 2);
 
 		if (!driver->MusicPlaying) {
@@ -169,7 +170,6 @@ void SDLAudio::music_callback(void *udata, uint8_t *stream, int len)
 		}
 	} while(true);
 
-	driver->MusicMutex.unlock();
 	SetAudioStreamVolume(mixerStream, mixerLen, MIX_MAX_VOLUME * volume / 100);
 }
 
@@ -362,6 +362,8 @@ bool SDLAudio::Stop()
 
 bool SDLAudio::Play()
 {
+	std::lock_guard<std::recursive_mutex> l(MusicMutex);
+
 	if (!MusicReader) {
 		return false;
 	}
@@ -409,36 +411,36 @@ void SDLAudio::buffer_callback(void *udata, uint8_t *stream, int len)
 
 	SDLAudio *driver = (SDLAudio *)udata;
 	unsigned int remaining = len;
-	driver->MusicMutex.lock();
 
-	while (remaining && !driver->buffers.empty()) {
-		unsigned int avail = driver->buffers[0].size - driver->curr_buffer_offset;
-		if (avail > remaining) {
-			// more data available in this buffer than we need
-			avail = remaining;
-			memcpy(stream, driver->buffers[0].buf + driver->curr_buffer_offset, avail);
-			driver->curr_buffer_offset += avail;
-		} else {
-			// exhausted this buffer, move to the next one
-			memcpy(stream, driver->buffers[0].buf + driver->curr_buffer_offset, avail);
-			driver->curr_buffer_offset = 0;
-			free(driver->buffers[0].buf);
-			// TODO: inefficient
-			driver->buffers.erase(driver->buffers.begin());
+	{
+		std::lock_guard<std::recursive_mutex> l(driver->MusicMutex);
+		while (remaining && !driver->buffers.empty()) {
+			unsigned int avail = driver->buffers[0].size - driver->curr_buffer_offset;
+			if (avail > remaining) {
+				// more data available in this buffer than we need
+				avail = remaining;
+				memcpy(stream, driver->buffers[0].buf + driver->curr_buffer_offset, avail);
+				driver->curr_buffer_offset += avail;
+			} else {
+				// exhausted this buffer, move to the next one
+				memcpy(stream, driver->buffers[0].buf + driver->curr_buffer_offset, avail);
+				driver->curr_buffer_offset = 0;
+				free(driver->buffers[0].buf);
+				// TODO: inefficient
+				driver->buffers.erase(driver->buffers.begin());
+			}
+			remaining -= avail;
+			stream = stream + avail;
 		}
-		remaining -= avail;
-		stream = stream + avail;
 	}
+
 	if (remaining > 0) {
 		// underrun (out of buffers)
 		memset(stream, 0, remaining);
 	}
-
-	driver->MusicMutex.unlock();	
 	SetAudioStreamVolume(mixerStream, mixerLen, MIX_MAX_VOLUME * volume / 100);
 }
 
-//This one is used for movies and ambients.
 int SDLAudio::SetupNewStream(ieWord x, ieWord y, ieWord z,
 			ieWord gain, bool point, int ambientRange)
 {
@@ -462,7 +464,6 @@ int SDLAudio::SetupNewStream(ieWord x, ieWord y, ieWord z,
 	MusicPlaying = false;
 	curr_buffer_offset = 0;
 	Mix_HookMusic((void (*)(void*, Uint8*, int))buffer_callback, this);
-
 	return 0;
 }
 
