@@ -650,7 +650,7 @@ bool DirectoryIterator::IsDirectory()
 #ifdef VITA
 	// MUCH faster than getting stat again
 	if (Entry) {
-		dirent* entry = static_cast<dirent*>(Entry);
+		dirent *entry = static_cast<dirent*>(Entry);
 		return SCE_STM_ISDIR(entry->d_stat.st_mode);
 	}
 #endif

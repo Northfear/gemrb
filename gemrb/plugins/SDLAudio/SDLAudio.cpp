@@ -143,7 +143,6 @@ void SDLAudio::music_callback(void *udata, uint8_t *stream, int len)
 	int mixerLen = len;
 
 	SDLAudio *driver = (SDLAudio *)udata;
-	driver->MusicMutex.lock();
 
 	do {
 		std::lock_guard<std::recursive_mutex> l(driver->MusicMutex);
