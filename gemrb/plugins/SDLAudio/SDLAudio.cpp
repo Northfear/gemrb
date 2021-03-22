@@ -412,22 +412,25 @@ void SDLAudio::buffer_callback(void *udata, uint8_t *stream, int len)
 	SDLAudio *driver = (SDLAudio *)udata;
 	unsigned int remaining = len;
 
-	while (remaining && !driver->buffers.empty()) {
+	{
 		std::lock_guard<std::recursive_mutex> l(driver->MusicMutex);
-
-		unsigned int avail = driver->buffers[0].size - driver->curr_buffer_offset;
-		if (avail > remaining) {
-			// more data available in this buffer than we need
-			avail = remaining;
-			memcpy(stream, driver->buffers[0].buf + driver->curr_buffer_offset, avail);
-			driver->curr_buffer_offset += avail;
-		} else {
-			// exhausted this buffer, move to the next one
-			memcpy(stream, driver->buffers[0].buf + driver->curr_buffer_offset, avail);
-			driver->curr_buffer_offset = 0;
-			free(driver->buffers[0].buf);
-			// TODO: inefficient
-			driver->buffers.erase(driver->buffers.begin());
+		while (remaining && !driver->buffers.empty()) {
+			unsigned int avail = driver->buffers[0].size - driver->curr_buffer_offset;
+			if (avail > remaining) {
+				// more data available in this buffer than we need
+				avail = remaining;
+				memcpy(stream, driver->buffers[0].buf + driver->curr_buffer_offset, avail);
+				driver->curr_buffer_offset += avail;
+			} else {
+				// exhausted this buffer, move to the next one
+				memcpy(stream, driver->buffers[0].buf + driver->curr_buffer_offset, avail);
+				driver->curr_buffer_offset = 0;
+				free(driver->buffers[0].buf);
+				// TODO: inefficient
+				driver->buffers.erase(driver->buffers.begin());
+			}
+			remaining -= avail;
+			stream = stream + avail;
 		}
 	}
 
