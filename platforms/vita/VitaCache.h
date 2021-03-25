@@ -7,8 +7,7 @@
 #include <vector>
 #include <time.h>
 
-#define FILE_CACHE_SIZE 224 * 1024 * 1024
-#define MAX_CACHED_FILE_SIZE 16 * 1024 * 1024
+#define VECTOR_CACHE 1
 
 struct CachedFile
 {
@@ -59,24 +58,33 @@ struct CachedFile
 	}
 };
 
-class FileCache
+class VitaCache
 {
 public:
+	static void Init();
 	static CachedFile* AddCachedFile(std::string name, size_t size);
 	static CachedFile* GetCachedFileByName(std::string name);
 	static void ReleaseFile(CachedFile* file);
 	static void TryRemoveFile(CachedFile* file);
-	static size_t GetFileCacheSize();
 
 private:
-	static bool FreeFileCache(size_t targetSize = FILE_CACHE_SIZE);
+	static bool FreeFileCache(size_t targetSize);
 	static bool IsInWhiteList(std::string filename);
 	static bool IsInBlackList(std::string filename);
 	static bool IsInUnloadList(std::string filename);
+	static void AddCachedFileInternal(CachedFile *cachedFile);
+	static void RemoveCachedFileInternal(CachedFile *file);
+	static CachedFile* GetCachedFileInternal(std::string name);
 
-	static std::unordered_map<std::string, CachedFile*> cachedFiles;
-	static std::vector<CachedFile*> garbageList;
+	static bool initialized;
+	static size_t maxCacheSize;
+	static size_t maxFileSize;
 	static size_t cacheSize;
+#ifdef VECTOR_CACHE
+	static std::vector<CachedFile*> cachedFiles;
+#else
+	static std::unordered_map<std::string, CachedFile*> cachedFiles;
+#endif
 	static std::vector<std::string> whitelist;
 	static std::vector<std::string> unloadlist;
 	static std::vector<std::string> blacklist;

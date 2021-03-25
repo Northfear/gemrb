@@ -140,10 +140,10 @@ IF(SUPPORTS_MEMSTREAM)
 	)
 ENDIF()
 
-if(VITA)
+if(VITA_CACHE)
 	SET(gemrb_core_LIB_SRCS
 		${gemrb_core_LIB_SRCS}
-		System/FileCache.cpp
+		${CMAKE_SOURCE_DIR}/platforms/vita/VitaCache.cpp
 	)
 ENDIF()
 

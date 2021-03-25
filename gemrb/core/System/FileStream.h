@@ -35,8 +35,10 @@
 
 #ifdef VITA
 #include <psp2/kernel/clib.h>
-#include "FileCache.h"
 #include "../platforms/vita/libc_bridge.h"
+#ifdef VITA_CACHE
+#include "../platforms/vita/VitaCache.h"
+#endif
 #endif
 
 namespace GemRB {
@@ -46,7 +48,7 @@ namespace GemRB {
  * Reads and writes data from/to files on a filesystem
  */
 
-#ifdef VITA
+#if defined(VITA) && !defined(VITA_CACHE)
 struct File {
 private:
 	FILE* file = nullptr;
@@ -122,7 +124,7 @@ public:
 	}
 	~File() {
 		if (cached) {
-			FileCache::ReleaseFile(cachedFile);
+			VitaCache::ReleaseFile(cachedFile);
 		}
 		if (file) sceLibcBridge_fclose(file); 
 	}
@@ -152,31 +154,34 @@ public:
 
 		if (cached) {
 			// Reopened? After writes? Better remove it from cache and read again..
-			sceClibPrintf("_________________TRY REMOVING! %s\n", name);
-			FileCache::TryRemoveFile(cachedFile);
+			VitaCache::ReleaseFile(cachedFile);
+			VitaCache::TryRemoveFile(cachedFile);
 			cached = false;
 		}
 
 		if (file) {
 			std::string stringName = std::string(name);
 			size_t fileSize = Length();
-			cachedFile = FileCache::GetCachedFileByName(stringName);
+			cachedFile = VitaCache::GetCachedFileByName(stringName);
+
+			if (cachedFile) {
+				if (cachedFile->fileSize != fileSize) {
+					VitaCache::TryRemoveFile(cachedFile);
+					cachedFile = nullptr;
+				}
+			}
 
 			if (!cachedFile) {
-				cachedFile = FileCache::AddCachedFile(stringName, fileSize);
+				cachedFile = VitaCache::AddCachedFile(stringName, fileSize);
 
 				if (cachedFile) {
 					sceLibcBridge_fread(cachedFile->fileContent, 1, fileSize, file);
-					sceClibPrintf("---------------------------FILE ADDED TO CACHE! %s SIZE: %zu\n", name, fileSize);
-					sceClibPrintf("---------------------------TOTAL CACHE SIZE: %zu\n", FileCache::GetFileCacheSize());
 				}
 			}
 
 			if (cachedFile) {
 				cached = true;
 				cachedOffset = 0;
-			} else {
-				sceClibPrintf("_________________NOT ADDED TO CACHE! %s SIZE: %zu\n", name, fileSize);
 			}
 		}
 
@@ -192,7 +197,7 @@ public:
 		if (cached) {
 			if (cachedOffset + length > cachedFile->fileSize)
 				length = cachedFile->fileSize - cachedOffset;
-			memcpy(ptr, cachedFile->fileContent + cachedOffset, length);
+			sceClibMemcpy(ptr, cachedFile->fileContent + cachedOffset, length);
 			cachedOffset += length;
 			cachedFile->UpdateAccessTime();
 			return length;
@@ -208,8 +213,7 @@ public:
 		if (cached) {
 			cachedOffset = offset;
 			return true;
-		}
-		else {
+		} else {
 			return !sceLibcBridge_fseek(file, offset, SEEK_SET);
 		}
 	}
@@ -218,8 +222,7 @@ public:
 		if (cached) {
 			cachedOffset += offset;
 			return true;
-		}
-		else {
+		} else {
 			return !sceLibcBridge_fseek(file, offset, SEEK_CUR);
 		}
 	}
@@ -228,8 +231,7 @@ public:
 		if (cached) {
 			cachedOffset = cachedFile->fileSize + offset;
 			return true;
-		}
-		else {
+		} else {
 			return !sceLibcBridge_fseek(file, offset, SEEK_END);
 		}
 	}

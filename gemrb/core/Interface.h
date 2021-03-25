@@ -836,6 +836,9 @@ public:
 	bool MultipleQuickSaves;
 	bool UseCorruptedHack;
 	int FeedbackLevel;
+#ifdef VITA_CACHE
+	bool VitaFileCache = false;
+#endif
 
 	Variables *plugin_flags;
 	/** The Main program loop */

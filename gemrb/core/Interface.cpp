@@ -1328,6 +1328,9 @@ int Interface::Init(InterfaceConfig* config)
 	CONFIG_INT("MouseFeedback", MouseFeedback = );
 	CONFIG_INT("GamepadPointerSpeed", GamepadPointerSpeed = );
 	CONFIG_INT("VitaKeepAspectRatio", VitaKeepAspectRatio = );
+#ifdef VITA_CACHE
+	CONFIG_INT("VitaFileCache", VitaFileCache = );
+#endif
 
 #undef CONFIG_INT
 

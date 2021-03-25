@@ -31,11 +31,29 @@
 #include <psp2/apputil.h>
 #include <psp2/fios2.h>
 
+#ifdef VITA_CACHE
+#include "../platforms/vita/VitaCache.h"
+#endif
+
+#define MAX_PATH_LENGTH 256
+#define RAMCACHEBLOCKNUM 32
+#define RAMCACHEBLOCKSIZE 128*1024
+#define DATA_PATH "ux0:data/GemRB"
+
+static int64_t g_OpStorage[SCE_FIOS_OP_STORAGE_SIZE(64, MAX_PATH_LENGTH) / sizeof(int64_t) + 1];
+static int64_t g_ChunkStorage[SCE_FIOS_CHUNK_STORAGE_SIZE(1024) / sizeof(int64_t) + 1];
+static int64_t g_FHStorage[SCE_FIOS_FH_STORAGE_SIZE(1024, MAX_PATH_LENGTH) / sizeof(int64_t) + 1];
+static int64_t g_DHStorage[SCE_FIOS_DH_STORAGE_SIZE(32, MAX_PATH_LENGTH) / sizeof(int64_t) + 1];
+
+static SceFiosRamCacheContext g_RamCacheContext = SCE_FIOS_RAM_CACHE_CONTEXT_INITIALIZER;
+static void *g_RamCacheWorkBuffer;
+
 // allocating memory for application on Vita
-int _newlib_heap_size_user = 330 * 1024 * 1024;
+int _newlib_heap_size_user = 340 * 1024 * 1024;
 
 char *vitaArgv[3];
 char configPath[25];
+
 
 void VitaSetArguments(int *argc, char **argv[])
 {
@@ -63,20 +81,6 @@ void VitaSetArguments(int *argc, char **argv[])
 	*argv = vitaArgv;
 }
 
-#define MAX_PATH_LENGTH 256
-// 32 or even 16 works fine here
-#define RAMCACHEBLOCKNUM 64
-#define RAMCACHEBLOCKSIZE 128*1024
-#define DATA_PATH "ux0:data/GemRB"
-
-static int64_t g_OpStorage[SCE_FIOS_OP_STORAGE_SIZE(64, MAX_PATH_LENGTH) / sizeof(int64_t) + 1];
-static int64_t g_ChunkStorage[SCE_FIOS_CHUNK_STORAGE_SIZE(1024) / sizeof(int64_t) + 1];
-static int64_t g_FHStorage[SCE_FIOS_FH_STORAGE_SIZE(1024, MAX_PATH_LENGTH) / sizeof(int64_t) + 1];
-static int64_t g_DHStorage[SCE_FIOS_DH_STORAGE_SIZE(32, MAX_PATH_LENGTH) / sizeof(int64_t) + 1];
-
-static SceFiosRamCacheContext g_RamCacheContext = SCE_FIOS_RAM_CACHE_CONTEXT_INITIALIZER;
-static void *g_RamCacheWorkBuffer;
-
 int fios_init(void)
 {
 	int res;
@@ -92,7 +96,7 @@ int fios_init(void)
 	params.dhStorage.length = sizeof(g_DHStorage);
 	params.pathMax = MAX_PATH_LENGTH;
 
-	params.threadAffinity[SCE_FIOS_IO_THREAD] = 0x20000;
+	params.threadAffinity[SCE_FIOS_IO_THREAD] = 0x10000;
 	params.threadAffinity[SCE_FIOS_CALLBACK_THREAD] = 0;
 	params.threadAffinity[SCE_FIOS_DECOMPRESSOR_THREAD] = 0;
 
@@ -119,7 +123,8 @@ int fios_init(void)
 	return 0;
 }
 
-void fios_terminate() {
+void fios_terminate()
+{
 	sceFiosIOFilterRemove(0);
 	sceFiosTerminate();
 	free(g_RamCacheWorkBuffer);
@@ -134,7 +139,8 @@ int main(int argc, char* argv[])
 	scePowerSetGpuClockFrequency(222);
 	scePowerSetGpuXbarClockFrequency(166);
 
-	sceKernelChangeThreadPriority(0, 64);
+	// OpenAL fails to init with priority 64
+	sceKernelChangeThreadPriority(0, 128);
 	//sceKernelChangeThreadCpuAffinityMask(0, 0x40000);
 
 	mallopt(M_TRIM_THRESHOLD, 20 * 1024);
@@ -153,15 +159,13 @@ int main(int argc, char* argv[])
 	
 	//Py_Initialize crashes on Vita otherwise
 	Py_NoSiteFlag = 1;
-	Py_IgnoreEnvironmentFlag = 1;
-	Py_NoUserSiteDirectory = 1;
 
 	core = new Interface();
 	CFGConfig* config = new CFGConfig(argc, argv);
 
-	if (core->Init( config ) == GEM_ERROR) {
+	if (core->Init(config) == GEM_ERROR) {
 		delete config;
-		delete( core );
+		delete(core);
 		Log(MESSAGE, "Main", "Aborting due to fatal error...");
 		ToggleLogging(false);
 		return sceKernelExitProcess(-1);
@@ -169,8 +173,12 @@ int main(int argc, char* argv[])
 
 	delete config;
 
+#ifdef VITA_CACHE
+	VitaCache::Init();
+#endif
+
 	core->Main();
-	delete( core );
+	delete(core);
 	ToggleLogging(false);
 
 	fios_terminate();

@@ -1,4 +1,5 @@
 ADD_DEFINITIONS("-DVITA")
+#ADD_DEFINITIONS("-DVITA_CACHE")
 
 SET(CMAKE_DL_LIBS "")
 SET(VITA_FLAGS "-Ofast -mcpu=cortex-a9 -mfpu=neon -ftree-vectorize -fgraphite-identity -floop-nest-optimize -flto=jobserver -D_GLIBCXX_USE_C99_MATH=0 -DNDEBUG \
