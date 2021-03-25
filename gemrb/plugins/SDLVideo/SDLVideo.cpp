@@ -376,27 +376,50 @@ void SDLVideoDriver::HandleJoyButtonEvent(const SDL_JoyButtonEvent & button)
 		{
 			case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
 				dPadSoftKeyboard.RemoveCharacter();
-				EvntManager->OnSpecialKeyPress(GEM_BACKSP);
+				if (core->ConsolePopped) {
+					core->console->OnSpecialKeyPress(GEM_BACKSP);
+				} else {
+					EvntManager->OnSpecialKeyPress(GEM_BACKSP);
+				}
 				break;
 			case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
 				dPadSoftKeyboard.AddCharacter();
-				EvntManager->KeyPress(dPadSoftKeyboard.GetCurrentKeyValue(), KMOD_NONE);
+				if (core->ConsolePopped) {
+					core->console->OnKeyPress(dPadSoftKeyboard.GetCurrentKeyValue(), KMOD_NONE);
+				} else {
+					EvntManager->KeyPress(dPadSoftKeyboard.GetCurrentKeyValue(), KMOD_NONE);
+				}
 				break;
 			case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
 				dPadSoftKeyboard.NextCharacter();
-				EvntManager->OnSpecialKeyPress(GEM_BACKSP);
-				EvntManager->KeyPress(dPadSoftKeyboard.GetCurrentKeyValue(), KMOD_NONE);
+				if (core->ConsolePopped) {
+					core->console->OnSpecialKeyPress(GEM_BACKSP);
+					core->console->OnKeyPress(dPadSoftKeyboard.GetCurrentKeyValue(), KMOD_NONE);
+				} else {
+					EvntManager->OnSpecialKeyPress(GEM_BACKSP);
+					EvntManager->KeyPress(dPadSoftKeyboard.GetCurrentKeyValue(), KMOD_NONE);
+				}
 				break;
 			case SDL_CONTROLLER_BUTTON_DPAD_UP:
 				dPadSoftKeyboard.PreviousCharacter();
-				EvntManager->OnSpecialKeyPress(GEM_BACKSP);
-				EvntManager->KeyPress(dPadSoftKeyboard.GetCurrentKeyValue(), KMOD_NONE);
+				if (core->ConsolePopped) {
+					core->console->OnSpecialKeyPress(GEM_BACKSP);
+					core->console->OnKeyPress(dPadSoftKeyboard.GetCurrentKeyValue(), KMOD_NONE);
+				} else {
+					EvntManager->OnSpecialKeyPress(GEM_BACKSP);
+					EvntManager->KeyPress(dPadSoftKeyboard.GetCurrentKeyValue(), KMOD_NONE);
+				}
 				break;
 			case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
 			case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
 				dPadSoftKeyboard.ToggleUppercase();
-				EvntManager->OnSpecialKeyPress(GEM_BACKSP);
-				EvntManager->KeyPress(dPadSoftKeyboard.GetCurrentKeyValue(), KMOD_NONE);
+				if (core->ConsolePopped) {
+					core->console->OnSpecialKeyPress(GEM_BACKSP);
+					core->console->OnKeyPress(dPadSoftKeyboard.GetCurrentKeyValue(), KMOD_NONE);
+				} else {
+					EvntManager->OnSpecialKeyPress(GEM_BACKSP);
+					EvntManager->KeyPress(dPadSoftKeyboard.GetCurrentKeyValue(), KMOD_NONE);
+				}
 				break;
 			//LMB event
 			case SDL_CONTROLLER_BUTTON_A:
@@ -405,6 +428,11 @@ void SDLVideoDriver::HandleJoyButtonEvent(const SDL_JoyButtonEvent & button)
 			//RMB event
 			case SDL_CONTROLLER_BUTTON_B:
 				GamepadMouseEvent(3, button.state);
+				break;
+			case SDL_CONTROLLER_BUTTON_START:
+				if (core->ConsolePopped) {
+					core->console->OnSpecialKeyPress(GEM_RETURN);
+				}
 				break;
 
 			default:

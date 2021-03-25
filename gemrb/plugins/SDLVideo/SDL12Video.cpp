@@ -328,6 +328,16 @@ int SDL12VideoDriver::ProcessEvent(const SDL_Event & event)
 		break;
 		case SDL_JOYBUTTONDOWN:
 		case SDL_JOYBUTTONUP:
+			if (SDL_JoystickGetButton(gameController, SDL_CONTROLLER_BUTTON_LEFTSHOULDER) != 0 &&
+				SDL_JoystickGetButton(gameController, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER) != 0 &&
+				SDL_JoystickGetButton(gameController, SDL_CONTROLLER_BUTTON_Y) != 0) {
+				core->PopupConsole();
+				if (core->ConsolePopped) {
+					ShowSoftKeyboard();
+				} else {
+					HideSoftKeyboard();
+				}
+			}
 			HandleJoyButtonEvent(event.jbutton);
 			break;
 		default:

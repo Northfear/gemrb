@@ -18,6 +18,8 @@ Here are the game config names and default game folders (where you should copy y
 
 [rePatch reDux0](https://github.com/dots-tb/rePatch-reDux0) OR [FdFix](https://github.com/TheOfficialFloW/FdFix) plugin is required for proper suspend/resume support (only use one at a time).
 
+bg2fixpack is recommended for BG2 (not sure about fixpacks for any other games).
+
 ## Building
 
 ### Prerequisites
@@ -25,6 +27,7 @@ Here are the game config names and default game folders (where you should copy y
 - [libSDL 1.2](https://github.com/Northfear/SDL-Vita/tree/SDL12) (this one is recommended due to touchpad support and a bit better performance)
 - SDL_mixer
 - [libpython](https://github.com/uyjulian/python_vita)
+- [libc_bridge](https://github.com/TheOfficialFloW/gtasa_vita/tree/master/libc_bridge)
 
 ### Build & installation
 ```
@@ -86,6 +89,10 @@ Widescreen mod is supported, but performance with native resolution can be poor 
 - L1 - Highlight items
 - SELECT - Open menu
 - START - Escape
+
+Console:
+- L1 + R1 + TRIANGLE - Open/Close console
+- SELECT - Enter command (while console is opened)
 
 
 # GemRB

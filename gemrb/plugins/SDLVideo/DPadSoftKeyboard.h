@@ -27,7 +27,7 @@
 class DPadSoftKeyboard
 {
 private:
-	static const int TOTAL_CHARACTERS_DPAD = 37;
+	static const int TOTAL_CHARACTERS_DPAD = 40;
 	bool inputActive = false;
 	bool emptyInput = false;
 	bool currentUpper = false;
@@ -41,7 +41,9 @@ private:
 		//space
 		32,
 		//nums
-		48, 49, 50, 51, 52, 53, 54, 55, 56, 57
+		48, 49, 50, 51, 52, 53, 54, 55, 56, 57,
+		//special
+		34, 40, 41
 	};
 
 public:
