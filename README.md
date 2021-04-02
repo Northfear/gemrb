@@ -28,11 +28,12 @@ bg2fixpack is recommended for BG2 (not sure about fixpacks for any other games).
 - SDL_mixer
 - [libpython](https://github.com/uyjulian/python_vita)
 - [libc_bridge](https://github.com/TheOfficialFloW/gtasa_vita/tree/master/libc_bridge)
+- [iconv(optional)](https://github.com/isage/iconv-vita)
 
 ### Build & installation
 ```
 mkdir build && cd build
-cmake .. -DCMAKE_TOOLCHAIN_FILE=$DOLCESDK/share/dolce.toolchain.cmake -DSDL_BACKEND=SDL -DSTATIC_LINK=enabled -DDISABLE_WERROR=enabled -DCMAKE_MAKE_PROGRAM=make -DVITA=true -DUSE_OPENAL=false -DUSE_FREETYPE=false -DCMAKE_BUILD_TYPE=None -DNOCOLOR=1
+cmake .. -DCMAKE_TOOLCHAIN_FILE=$DOLCESDK/share/dolce.toolchain.cmake -DSDL_BACKEND=SDL -DSTATIC_LINK=enabled -DDISABLE_WERROR=enabled -DCMAKE_MAKE_PROGRAM=make -DVITA=true -DUSE_OPENAL=true -DUSE_FREETYPE=true -DCMAKE_BUILD_TYPE=None -DNOCOLOR=1
 make
 ```
 Generated VPK file is located in build/gemrb folder. Install it to your Vita system.
@@ -56,7 +57,7 @@ https://github.com/Cpasjuste/psp2shell
 
 ### Input
 
-Keyboard input is done with D-Pad (on character creation and game saves. 'a-z', '0-9' and 'space' are supported).
+Keyboard input is done with D-Pad (on character creation and game saves. 'a-z', '0-9', 'space' and some special characters for console commands are supported).
 
 - Left - Remove character
 - Right - Add new character
@@ -68,9 +69,17 @@ Keyboard input is done with D-Pad (on character creation and game saves. 'a-z', 
 
 Pointer movement speed can be changed with 'GamepadPointerSpeed' parameter in GemRB.cfg.
 
-Use "Fullscreen=1" to scale game area to native Vita resolution or "Fullscreen=0" to keep game area at the center of the screen.
+Use ```Fullscreen=1``` to scale game area to native Vita resolution or ```Fullscreen=0``` to keep game area at the center of the screen.
+
+```VitaBilinear=1``` (option is active only when used with ```Fullscreen=1```) uses bilinear filter while scaling the game surface. ```VitaBilinear=0``` uses the nearest filtering.
 
 VitaKeepAspectRatio=1 keeps aspect ratio of original image when scaling. VitaKeepAspectRatio=0 just scales it to 960x544.
+
+Both openal and sdlaudio audio plugins are supported. ```openal``` has enviromental audio support and a bit better audio quality in general. ```sdlaudio``` is using less resources while providing most of the functionality. You can change audio backend by editing config file:
+
+```
+AudioDriver=openal
+```
 
 ### Performance
 
@@ -80,10 +89,10 @@ Widescreen mod is supported, but performance with native resolution can be poor 
 
 ## Controls
 - Left analog stick - Pointer movement
-- X button - Left mouse button
-- O button - Right mouse button
-- SQUARE button - Open map
-- TRIANGLE button - Open inventory
+- × - Left mouse button
+- ○ - Right mouse button
+- □ - Open map
+- △ - Open inventory
 - D-Pad, Right analog stick  - Map scrolling
 - R1 - Pause
 - L1 - Highlight items
@@ -91,7 +100,7 @@ Widescreen mod is supported, but performance with native resolution can be poor 
 - START - Escape
 
 Console:
-- L1 + R1 + TRIANGLE - Open/Close console
+- L1 + R1 + △ - Open/Close console
 - SELECT - Enter command (while console is opened)
 
 

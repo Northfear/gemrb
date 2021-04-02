@@ -49,7 +49,7 @@ static SceFiosRamCacheContext g_RamCacheContext = SCE_FIOS_RAM_CACHE_CONTEXT_INI
 static void *g_RamCacheWorkBuffer;
 
 // allocating memory for application on Vita
-int _newlib_heap_size_user = 340 * 1024 * 1024;
+int _newlib_heap_size_user = 335 * 1024 * 1024;
 
 char *vitaArgv[3];
 char configPath[25];

@@ -38,6 +38,15 @@
 
 	<frame id='frame4' multi='o' autoflip='3' >
 		<liveitem>
+			<target>psla:IWD2</target>
+			<text valign="bottom" align="left" text-align="left" margin-left="60" word-wrap="off" ellipsis="on">
+				<str bold="on" size="30" color="#ffffff" emboss="on" shadow="on">Icewind Dale 2</str>
+			</text>
+		</liveitem>
+	</frame>
+
+	<frame id='frame5' multi='o' autoflip='3' >
+		<liveitem>
 			<target>psla:PST</target>
 			<text valign="bottom" align="left" text-align="left" margin-left="60" word-wrap="off" ellipsis="on">
 				<str bold="on" size="30" color="#ffffff" emboss="on" shadow="on">Planescape: Torment</str>
