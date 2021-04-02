@@ -129,8 +129,8 @@ int SDL12VideoDriver::CreateDisplay(int w, int h, int b, bool fs, const char* ti
 				vitaDestRect.w = VITA_FULLSCREEN_WIDTH;
 				vitaDestRect.h = VITA_FULLSCREEN_HEIGHT;
 			}
-			
-			SDL_SetVideoModeBilinear(true);
+
+			SDL_SetVideoModeBilinear(core->VitaBilinear);
 		} else {
 			//center game area
 			vitaDestRect.x = (VITA_FULLSCREEN_WIDTH - width) / 2;
@@ -328,6 +328,7 @@ int SDL12VideoDriver::ProcessEvent(const SDL_Event & event)
 		break;
 		case SDL_JOYBUTTONDOWN:
 		case SDL_JOYBUTTONUP:
+#ifdef VITA
 			if (SDL_JoystickGetButton(gameController, SDL_CONTROLLER_BUTTON_LEFTSHOULDER) != 0 &&
 				SDL_JoystickGetButton(gameController, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER) != 0 &&
 				SDL_JoystickGetButton(gameController, SDL_CONTROLLER_BUTTON_Y) != 0) {
@@ -338,6 +339,7 @@ int SDL12VideoDriver::ProcessEvent(const SDL_Event & event)
 					HideSoftKeyboard();
 				}
 			}
+#endif
 			HandleJoyButtonEvent(event.jbutton);
 			break;
 		default:

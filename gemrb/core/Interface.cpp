@@ -1330,6 +1330,7 @@ int Interface::Init(InterfaceConfig* config)
 	CONFIG_INT("VitaKeepAspectRatio", VitaKeepAspectRatio = );
 #ifdef VITA_CACHE
 	CONFIG_INT("VitaFileCache", VitaFileCache = );
+	CONFIG_INT("VitaBilinear", VitaBilinear = );
 #endif
 
 #undef CONFIG_INT

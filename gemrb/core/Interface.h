@@ -838,6 +838,7 @@ public:
 	int FeedbackLevel;
 #ifdef VITA_CACHE
 	bool VitaFileCache = false;
+	bool VitaBilinear = true;
 #endif
 
 	Variables *plugin_flags;
