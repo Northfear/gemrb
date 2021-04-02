@@ -1,13 +1,16 @@
 #pragma once
 
+#define VECTOR_CACHE 1
+
 #include <stdint.h>
 #include <string>
-#include <unordered_map>
-#include <map>
-#include <vector>
 #include <time.h>
 
-#define VECTOR_CACHE 1
+#ifdef VECTOR_CACHE
+#include <vector>
+#else
+#include <unordered_map>
+#endif
 
 struct CachedFile
 {
@@ -17,6 +20,7 @@ struct CachedFile
 	int usedBy = 0;
 	time_t lastAccessTime = 0;
 	bool allowUnload = true;
+	bool flaggedForRemoval = false;
 
 	CachedFile(std::string newName, size_t newfileFize, bool newAllowUnload)
 	{
@@ -66,6 +70,8 @@ public:
 	static CachedFile* GetCachedFileByName(std::string name);
 	static void ReleaseFile(CachedFile* file);
 	static void TryRemoveFile(CachedFile* file);
+	static void TryRemoveFile(const char *name);
+	static bool IsCached(const char *name);
 
 private:
 	static bool FreeFileCache(size_t targetSize);

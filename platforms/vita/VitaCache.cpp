@@ -1,7 +1,6 @@
 #include "VitaCache.h"
 #include "Interface.h"
 #include <fstream>
-#include <psp2/kernel/clib.h>
 
 const std::string EVERYTHING = "*";
 
@@ -10,7 +9,7 @@ std::vector<std::string> VitaCache::whitelist = { };
 // files from whitelist that can be unloaded
 std::vector<std::string> VitaCache::unloadlist = { };
 // never load into cache. Ignore Cache2, since files with the same name (and even size) may be generated there on different savegames
-std::vector<std::string> VitaCache::blacklist = { "Cache2", ".wav", ".mus", ".WAV", ".MUS" };
+std::vector<std::string> VitaCache::blacklist = { ".wav", ".WAV" };
 
 bool VitaCache::initialized = false;
 size_t VitaCache::maxCacheSize = 192 * 1024 * 1024;
@@ -48,6 +47,8 @@ void SeparateAndAddToList(std::string items, std::vector<std::string> &list, boo
 
 void VitaCache::AddCachedFileInternal(CachedFile *cachedFile)
 {
+	cachedFile->AccessFile();
+	cacheSize += cachedFile->fileSize;
 #ifdef VECTOR_CACHE
 	cachedFiles.emplace_back(cachedFile);
 #else
@@ -119,7 +120,7 @@ void VitaCache::Init()
 			initialized = true;
 		}
 
-		cachedFiles.reserve(200);
+		//cachedFiles.reserve(400);
 	}
 }
 
@@ -183,7 +184,6 @@ bool VitaCache::FreeFileCache(size_t targetSize)
 		CachedFile* lowestPriorityFile = cachedFiles[minIndex];
 		cacheSize -= lowestPriorityFile->fileSize;
 		cachedFiles.erase(cachedFiles.begin() + minIndex);
-		sceClibPrintf("______REMOVED FROM CACHE! %s SIZE %zu\n", lowestPriorityFile->fileName.c_str(), lowestPriorityFile->fileSize);
 		delete lowestPriorityFile;
 	}
 #else
@@ -214,12 +214,10 @@ bool VitaCache::FreeFileCache(size_t targetSize)
 		CachedFile* lowestPriorityFile = minIt->second;
 		cacheSize -= lowestPriorityFile->fileSize;
 		cachedFiles.erase(minIt);
-		sceClibPrintf("______REMOVED FROM CACHE! %s SIZE %zu\n", lowestPriorityFile->fileName.c_str(), lowestPriorityFile->fileSize);
 		delete lowestPriorityFile;
 	}
 #endif
 
-	sceClibPrintf("______++++++______CLEARING CACHE! FILES LEFT: %zu SIZE: %zu\n", cachedFiles.size(), cacheSize);
 	return cacheSize < targetSize;
 }
 
@@ -240,21 +238,41 @@ CachedFile* VitaCache::GetCachedFileByName(std::string name)
 void VitaCache::ReleaseFile(CachedFile* file)
 {
 	file->ReleaseFile();
+	if (file->flaggedForRemoval && !file->InUse()) {
+		RemoveCachedFileInternal(file);
+	}
 }
 
 void VitaCache::TryRemoveFile(CachedFile* file)
 {
-	// file might not be removed if it's still used by someone. could be a problem if it's not updated after some write (no idea if this could happen tho)
 	if (file->InUse()) {
+		file->flaggedForRemoval = true;
 		return;
 	}
 	RemoveCachedFileInternal(file);
 }
 
+void VitaCache::TryRemoveFile(const char *name)
+{
+	std::string stringName = std::string(name);
+	CachedFile *cachedFile = GetCachedFileInternal(stringName);
+	if (cachedFile != nullptr) {
+		TryRemoveFile(cachedFile);
+	}
+}
+
+bool VitaCache::IsCached(const char *name)
+{
+	if (initialized) {
+		return false;
+	}
+	std::string stringName = std::string(name);
+	return GetCachedFileInternal(stringName) != nullptr;
+}
+
 CachedFile* VitaCache::AddCachedFile(std::string name, size_t size)
 {
 	if (!initialized || size > maxCacheSize) {
-		sceClibPrintf("_________________NOT ADDED TO CACHE! %s SIZE: %zu\n", name.c_str(), size);
 		return nullptr;
 	}
 
@@ -264,24 +282,17 @@ CachedFile* VitaCache::AddCachedFile(std::string name, size_t size)
 	if (IsInWhiteList(name)) {
 		allowUnload = IsInUnloadList(name);
 	} else if (size > maxFileSize || IsInBlackList(name)) {
-		sceClibPrintf("_________________NOT ADDED TO CACHE! %s SIZE: %zu\n", name.c_str(), size);
 		return nullptr;
 	}
 
 	if (cacheSize + size > maxCacheSize) {
 		if (!FreeFileCache(maxCacheSize - size)) {
-			sceClibPrintf("_________________NOT ADDED TO CACHE! %s SIZE: %zu\n", name.c_str(), size);
 			return nullptr;
 		}
 	}
 
 	CachedFile *cachedFile = new CachedFile(name, size, allowUnload);
-	cachedFile->AccessFile();
 	AddCachedFileInternal(cachedFile);
-	cacheSize += size;
-
-	sceClibPrintf("---------------------------FILE ADDED TO CACHE! %s SIZE: %zu\n", name.c_str(), size);
-	sceClibPrintf("---------------------------TOTAL CACHE ITEMS: %zu TOTAL CACHE SIZE: %zu\n", cachedFiles.size(), cacheSize);
 
 	return cachedFile;
 }

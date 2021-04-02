@@ -1,8 +1,10 @@
 ADD_DEFINITIONS("-DVITA")
-#ADD_DEFINITIONS("-DVITA_CACHE")
+IF(VITA_CACHE)
+    ADD_DEFINITIONS("-DVITA_CACHE")
+ENDIF()
 
 SET(CMAKE_DL_LIBS "")
-SET(VITA_FLAGS "-Ofast -mcpu=cortex-a9 -mfpu=neon -ftree-vectorize -fgraphite-identity -floop-nest-optimize -flto=jobserver -D_GLIBCXX_USE_C99_MATH=0 -DNDEBUG \
+SET(VITA_FLAGS "-Ofast -mcpu=cortex-a9 -mfpu=neon -fgraphite-identity -floop-nest-optimize -flto=jobserver -D_GLIBCXX_USE_C99_MATH=0 -DNDEBUG \
 -Wl,--sort-common -Wl,--whole-archive -lpthread -Wl,--no-whole-archive")
 SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${VITA_FLAGS}")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${VITA_FLAGS}")

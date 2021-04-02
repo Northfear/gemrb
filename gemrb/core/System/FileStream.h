@@ -166,6 +166,7 @@ public:
 
 			if (cachedFile) {
 				if (cachedFile->fileSize != fileSize) {
+					VitaCache::ReleaseFile(cachedFile);
 					VitaCache::TryRemoveFile(cachedFile);
 					cachedFile = nullptr;
 				}
@@ -173,7 +174,6 @@ public:
 
 			if (!cachedFile) {
 				cachedFile = VitaCache::AddCachedFile(stringName, fileSize);
-
 				if (cachedFile) {
 					sceLibcBridge_fread(cachedFile->fileContent, 1, fileSize, file);
 				}
@@ -188,9 +188,15 @@ public:
 		return file;
 	}
 	bool OpenRW(const char *name) {
+		if (VitaCache::IsCached(name)) {
+			VitaCache::TryRemoveFile(name);
+		}
 		return (file = sceLibcBridge_fopen(name, "r+b"));
 	}
 	bool OpenNew(const char *name) {
+		if (VitaCache::IsCached(name)) {
+			VitaCache::TryRemoveFile(name);
+		}
 		return (file = sceLibcBridge_fopen(name, "wb"));
 	}
 	size_t Read(void* ptr, size_t length) {
