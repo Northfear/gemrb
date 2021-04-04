@@ -5,17 +5,17 @@ Download gemrb_data.zip and gemrb.vpk files from https://github.com/Northfear/ge
 
 Install gemrb.vpk to your Vita. Extract "GemRB" folder from gemrb_data.zip to ux0:data.
 
-Copy original game folder to ux0:data/GemRB/ and edit ux0:data/GemRB/GemRB.cfg file (set correct "GameType" and "GamePath" parameters. Game auto detection isn't working, so set "GameType" manually).
+Copy original game folder to ux0:data/GemRB/ and edit ux0:data/GemRB/GemRB.cfg file (set correct ```GameType``` and ```GamePath``` parameters. Game auto detection isn't working, so set ```GameType``` manually).
 
 LiveArea launcher supports launching different games from it by selecting appropriate game title.
 
 Here are the game config names and default game folders (where you should copy your game data) that are used by each title (configs should be located in ux0:data/GemRB/):
 
-- Baldur's Gate - BG1.cfg. Default game path: ux0:data/GemRB/BG1
-- Baldur's Gate 2 - BG2.cfg. Default game path: ux0:data/GemRB/BG2
-- Icewind Dale - IWD.cfg. Default game path: ux0:data/GemRB/IWD
-- Icewind Dale 2 - IWD2.cfg. Default game path: ux0:data/GemRB/IWD2
-- Planescape: Torment - PST.cfg . Default game path: ux0:data/GemRB/PST
+- Baldur's Gate - ```BG1.cfg```. Default game path: ```ux0:data/GemRB/BG1```
+- Baldur's Gate 2 - ```BG2.cfg```. Default game path: ```ux0:data/GemRB/BG2```
+- Icewind Dale - ```IWD.cfg```. Default game path: ```ux0:data/GemRB/IWD```
+- Icewind Dale 2 - ```IWD2.cfg```. Default game path: ```ux0:data/GemRB/IWD2```
+- Planescape: Torment - ```PST.cfg```. Default game path: ```ux0:data/GemRB/PST```
 
 [rePatch reDux0](https://github.com/dots-tb/rePatch-reDux0) OR [FdFix](https://github.com/TheOfficialFloW/FdFix) plugin is required for proper suspend/resume support (only use one at a time).
 
@@ -29,7 +29,7 @@ bg2fixpack is recommended for BG2 (not sure about fixpacks for any other games).
 - SDL_mixer
 - [libpython](https://github.com/uyjulian/python_vita)
 - [libc_bridge](https://github.com/TheOfficialFloW/gtasa_vita/tree/master/libc_bridge)
-- [iconv(optional)](https://github.com/isage/iconv-vita)
+- [iconv](https://github.com/isage/iconv-vita) (optional)
 
 ### Build & installation
 ```
@@ -39,7 +39,7 @@ make
 ```
 Generated VPK file is located in build/gemrb folder. Install it to your Vita system.
 
-Copy folders "GUIScripts", "override" and "unhardcoded" from gemrb folder into ux0:data/GemRB/
+Copy folders ```GUIScripts```, ```override``` and ```unhardcoded``` from gemrb folder into ux0:data/GemRB/
 
 Rename build/gemrb/GemRB.cfg.sample into GemRB.cfg, copy it to ux0:data/GemRB/ and change the following options:
 
@@ -68,13 +68,13 @@ Keyboard input is done with D-Pad (on character creation and game saves. 'a-z', 
 
 ### Vita specific options
 
-Pointer movement speed can be changed with 'GamepadPointerSpeed' parameter in GemRB.cfg.
+Pointer movement speed can be changed with ```GamepadPointerSpeed``` parameter in GemRB.cfg.
 
 Use ```Fullscreen=1``` to scale game area to native Vita resolution or ```Fullscreen=0``` to keep game area at the center of the screen.
 
 ```VitaBilinear=1``` (option is active only when used with ```Fullscreen=1```) uses bilinear filter while scaling the game surface. ```VitaBilinear=0``` uses the nearest filtering.
 
-VitaKeepAspectRatio=1 keeps aspect ratio of original image when scaling. VitaKeepAspectRatio=0 just scales it to 960x544.
+```VitaKeepAspectRatio=1``` keeps aspect ratio of original image when scaling. ```VitaKeepAspectRatio=0``` just scales it to 960x544.
 
 Both openal and sdlaudio audio plugins are supported. ```openal``` has enviromental audio support and a bit better audio quality in general. ```sdlaudio``` is using less resources while providing most of the functionality. You can change audio backend by editing config file:
 
@@ -86,7 +86,7 @@ AudioDriver=openal
 
 Widescreen mod is supported, but performance with native resolution can be poor in areas with a lot of characters.
 
-"Bpp=16" option is recommended for better performance. The game is pretty IO heavy, loading can take quite some time. Disabling walking and combat sounds may reduce stutters during initial load of audio files into the cache.
+```Bpp=16``` option is recommended for better performance. The game is pretty IO heavy, loading can take quite some time. Disabling walking and combat sounds may reduce stutters during initial load of audio files into the cache.
 
 ## Controls
 - Left analog stick - Pointer movement
