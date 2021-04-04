@@ -4935,7 +4935,7 @@ void Actor::PlayWalkSound()
 	ieDword thisTime;
 	ieResRef Sound;
 
-	thisTime = GetTickCount();
+	thisTime = GetTicks();
 	if (thisTime<nextWalk) return;
 	int cnt = anims->GetWalkSoundCount();
 	if (!cnt) return;
@@ -7879,7 +7879,8 @@ void Actor::UpdateActorState(ieDword gameTime) {
 		return;
 	}
 
-	int roundFraction = (gameTime-roundTime) % GetAdjustedTime(core->Time.round_size);
+	// use the combat round size as the original;  also skald song duration matches it
+	int roundFraction = (gameTime - roundTime) % GetAdjustedTime(core->Time.attack_round_size);
 
 	//actually, iwd2 has autosearch, also, this is useful for dayblindness
 	//apply the modal effect about every second (pst and iwds have round sizes that are not multiples of 15)
@@ -8620,7 +8621,7 @@ void Actor::Draw(const Region &screen)
 	}
 
 	if (remainingTalkSoundTime > 0) {
-		unsigned int currentTick = GetTickCount();
+		unsigned int currentTick = GetTicks();
 		unsigned int diffTime = currentTick - lastTalkTimeCheckAt;
 		lastTalkTimeCheckAt = currentTick;
 
@@ -11442,7 +11443,7 @@ const char *Actor::GetKitName(ieDword kitID) const
 
 void Actor::SetAnimatedTalking (unsigned int length) {
 	remainingTalkSoundTime = std::max(remainingTalkSoundTime, length);
-	lastTalkTimeCheckAt = GetTickCount();
+	lastTalkTimeCheckAt = GetTicks();
 }
 
 bool Actor::HasPlayerClass() const
