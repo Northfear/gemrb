@@ -14,6 +14,7 @@ Here are the game config names and default game folders (where you should copy y
 - Baldur's Gate - BG1.cfg. Default game path: ux0:data/GemRB/BG1
 - Baldur's Gate 2 - BG2.cfg. Default game path: ux0:data/GemRB/BG2
 - Icewind Dale - IWD.cfg. Default game path: ux0:data/GemRB/IWD
+- Icewind Dale 2 - IWD2.cfg. Default game path: ux0:data/GemRB/IWD2
 - Planescape: Torment - PST.cfg . Default game path: ux0:data/GemRB/PST
 
 [rePatch reDux0](https://github.com/dots-tb/rePatch-reDux0) OR [FdFix](https://github.com/TheOfficialFloW/FdFix) plugin is required for proper suspend/resume support (only use one at a time).
