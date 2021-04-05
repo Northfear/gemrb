@@ -5,7 +5,8 @@ ENDIF()
 
 SET(CMAKE_DL_LIBS "")
 SET(VITA_FLAGS "-Ofast -mcpu=cortex-a9 -mfpu=neon -fgraphite-identity -floop-nest-optimize -flto=jobserver -D_GLIBCXX_USE_C99_MATH=0 -DNDEBUG \
--Wl,--sort-common -Wl,--whole-archive -lpthread -Wl,--no-whole-archive")
+-Wl,--sort-common -Wl,--whole-archive -lpthread -Wl,--no-whole-archive \
+-fno-builtin-memcpy -fno-builtin-memset -fno-builtin-memmove -fno-builtin-memcmp")
 SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${VITA_FLAGS}")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${VITA_FLAGS}")
 SET(VITA_LIBRARIES_SDL_COMMON "-lvorbis -logg -lmikmod -lSceAudio_stub -lSceAudioIn_stub -lSceCtrl_stub -lSceGxm_stub -lSceGxmInternalForVsh_stub -lSceHid_stub \
