@@ -92,9 +92,13 @@ Widescreen mod is supported, but performance with native resolution can be poor 
 - Left analog stick - Pointer movement
 - × - Left mouse button
 - ○ - Right mouse button
-- □ - Open map
-- △ - Open inventory
-- D-Pad, Right analog stick  - Map scrolling
+- □ - Open map (M key)
+- △ - Open inventory (I key)
+- D-Pad Up - Open character record (R key)
+- D-Pad Down - Open journal (J key)
+- D-Pad Left - Priest spells (P key)
+- D-Pad Right - Wizard spells (W key)
+- Right analog stick  - Map scrolling
 - R1 - Pause
 - L1 - Highlight items
 - SELECT - Open menu
@@ -103,6 +107,8 @@ Widescreen mod is supported, but performance with native resolution can be poor 
 Console:
 - L1 + R1 + △ - Open/Close console
 - SELECT - Enter command (while console is opened)
+
+You can remap □, △ and D-Pad buttons by editing ```Keymap.ini``` in individual game folder and assigning M, I, R, J, P, W keys to your liking.
 
 
 # GemRB

@@ -452,25 +452,28 @@ void SDLVideoDriver::HandleJoyButtonEvent(const SDL_JoyButtonEvent & button)
 			case SDL_CONTROLLER_BUTTON_B:
 				GamepadMouseEvent(3, button.state);
 				break;
-			//scroll map
+			//priest spells
 			case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
 				if (button.state == SDL_PRESSED) {
-					EvntManager->OnSpecialKeyPress(GEM_LEFT);
+					GamepadKeyboardEvent(SDLK_p, button.state);
 				}
 				break;
+			//wizard spells
 			case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
 				if (button.state == SDL_PRESSED) {
-					EvntManager->OnSpecialKeyPress(GEM_RIGHT);
+					GamepadKeyboardEvent(SDLK_w, button.state);
 				}
 				break;
+			//character record
 			case SDL_CONTROLLER_BUTTON_DPAD_UP:
 				if (button.state == SDL_PRESSED) {
-					EvntManager->OnSpecialKeyPress(GEM_UP);
+					GamepadKeyboardEvent(SDLK_r, button.state);
 				}
 				break;
+			//journal
 			case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
 				if (button.state == SDL_PRESSED) {
-					EvntManager->OnSpecialKeyPress(GEM_DOWN);
+					GamepadKeyboardEvent(SDLK_j, button.state);
 				}
 				break;
 			//open menu
