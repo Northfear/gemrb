@@ -23,6 +23,10 @@
 #include "Game.h"
 #include "Interface.h"
 
+#ifdef VITA
+#include <psp2/kernel/sysmem.h>
+#endif
+
 using namespace GemRB;
 
 SDL12VideoDriver::SDL12VideoDriver(void)
@@ -40,6 +44,10 @@ SDL12VideoDriver::~SDL12VideoDriver(void)
 
 int SDL12VideoDriver::Init(void)
 {
+#ifdef VITA
+	SDL_PSP2_SetTextureAllocMemblockType(SCE_KERNEL_MEMBLOCK_TYPE_USER_RW_UNCACHE);
+#endif
+
 	int ret = SDLVideoDriver::Init();
 	if (ret==GEM_OK) {
 		SDL_EnableUNICODE( 1 );
@@ -130,16 +138,16 @@ int SDL12VideoDriver::CreateDisplay(int w, int h, int b, bool fs, const char* ti
 				vitaDestRect.h = VITA_FULLSCREEN_HEIGHT;
 			}
 
-			SDL_SetVideoModeBilinear(core->VitaBilinear);
+			SDL_PSP2_SetVideoModeBilinear(core->VitaBilinear);
 		} else {
 			//center game area
 			vitaDestRect.x = (VITA_FULLSCREEN_WIDTH - width) / 2;
 			vitaDestRect.y = (VITA_FULLSCREEN_HEIGHT - height) / 2;
 		}
-
-		SDL_SetVideoModeSync(0);
-		SDL_SetVideoModeScaling(vitaDestRect.x, vitaDestRect.y, vitaDestRect.w, vitaDestRect.h);
+		SDL_PSP2_SetVideoModeScaling(vitaDestRect.x, vitaDestRect.y, vitaDestRect.w, vitaDestRect.h);
 	}
+	SDL_PSP2_SetVideoModeSync(1);
+	SDL_PSP2_SetFlipWaitRendering(1);
 #endif
 
 	return GEM_OK;
