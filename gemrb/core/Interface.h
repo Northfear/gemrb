@@ -836,9 +836,11 @@ public:
 	bool MultipleQuickSaves;
 	bool UseCorruptedHack;
 	int FeedbackLevel;
+#ifdef VITA
+	bool VitaBilinear = true;
+#endif
 #ifdef VITA_CACHE
 	bool VitaFileCache = false;
-	bool VitaBilinear = true;
 #endif
 
 	Variables *plugin_flags;

@@ -53,6 +53,13 @@ static bool checkALError(const char* msg, log_level level) {
 	int error = alGetError();
 	if (error != AL_NO_ERROR) {
 		Log(level, "OpenAL", "%s: 0x%x - %s", msg, error, alGetString(error));
+#ifdef VITA
+		// something fails on Vita BEFORE alGetSourcei on line ~905 with "0xa003 - Invalid Value" (so music change is failing)
+		// there's also a warning after alSourceStop in ResetMusic/Stop. Or was it triggered before too?
+		// lets ignore this error for now and pretend that everything is fine
+		if (error == 40963)
+			return false;
+#endif
 		return true;
 	}
 	return false;
