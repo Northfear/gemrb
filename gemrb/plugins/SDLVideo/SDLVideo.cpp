@@ -477,11 +477,11 @@ void SDLVideoDriver::HandleJoyButtonEvent(const SDL_JoyButtonEvent & button)
 				}
 				break;
 			//open menu
-			case SDL_CONTROLLER_BUTTON_START:
+			case SDL_CONTROLLER_BUTTON_BACK:
 				GamepadKeyboardEvent(SDLK_o, button.state);
 				break;
 			//ESC
-			case SDL_CONTROLLER_BUTTON_BACK:
+			case SDL_CONTROLLER_BUTTON_START:
 				if (button.state == SDL_PRESSED) {
 					EvntManager->OnSpecialKeyPress(GEM_ESCAPE);
 				}
@@ -1680,7 +1680,7 @@ int SDLVideoDriver::PollMovieEvents()
 #else
 			case SDL_JOYBUTTONDOWN:
 #endif
-				if (event.jbutton.button == SDL_CONTROLLER_BUTTON_BACK || event.jbutton.button == SDL_CONTROLLER_BUTTON_A || event.jbutton.button == SDL_CONTROLLER_BUTTON_B) {
+				if (event.jbutton.button == SDL_CONTROLLER_BUTTON_BACK || event.jbutton.button == SDL_CONTROLLER_BUTTON_START || event.jbutton.button == SDL_CONTROLLER_BUTTON_A || event.jbutton.button == SDL_CONTROLLER_BUTTON_B) {
 					return 1;
 				}
 				break;

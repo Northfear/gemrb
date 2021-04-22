@@ -106,7 +106,7 @@ Widescreen mod is supported, but performance with native resolution can be poor 
 
 Console:
 - L1 + R1 + △ - Open/Close console
-- SELECT - Enter command (while console is opened)
+- START - Enter command (while console is opened)
 
 You can remap □, △ and D-Pad buttons by editing ```Keymap.ini``` in individual game folder and assigning M, I, R, J, P, W keys to your liking.
 
