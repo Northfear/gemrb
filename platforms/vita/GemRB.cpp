@@ -25,6 +25,7 @@
 
 #include <malloc.h>
 #include <python2.7/Python.h>
+#include <SDL.h>
 
 #include <psp2/kernel/processmgr.h>
 #include <psp2/power.h>
@@ -184,6 +185,7 @@ int main(int argc, char* argv[])
 	CFGConfig* config = new CFGConfig(argc, argv);
 
 	if (core->Init(config) == GEM_ERROR) {
+		SDL_VITA_ShowMessageBox("Aborting due to fatal error...\nGemRB requires data from original Infinity Engine games. Check your installation and try again.");
 		delete config;
 		delete(core);
 		Log(MESSAGE, "Main", "Aborting due to fatal error...");

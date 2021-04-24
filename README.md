@@ -25,7 +25,7 @@ bg2fixpack is recommended for BG2 (not sure about fixpacks for any other games).
 
 ### Prerequisites
 - DolceSDK
-- [libSDL 1.2](https://github.com/Northfear/SDL-Vita/tree/SDL12)
+- [libSDL 1.2](https://github.com/Northfear/SDL-1.2-vita)
 - SDL_mixer
 - [libpython](https://github.com/uyjulian/python_vita)
 - [libc_bridge](https://github.com/TheOfficialFloW/gtasa_vita/tree/master/libc_bridge)

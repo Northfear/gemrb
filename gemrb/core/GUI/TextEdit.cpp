@@ -198,7 +198,7 @@ void TextEdit::SetFocus(bool focus)
 {
 	Control::SetFocus(focus);
 	if (hasFocus) {
-		core->GetVideoDriver()->ShowSoftKeyboard();
+		core->GetVideoDriver()->ShowSoftKeyboard(Text);
 	}
 #ifdef VITA
 	else {

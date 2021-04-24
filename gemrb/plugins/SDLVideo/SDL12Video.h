@@ -55,7 +55,7 @@ public:
 	void MoveMouse(unsigned int x, unsigned int y);
 
 	bool ToggleGrabInput();
-	void ShowSoftKeyboard();
+	void ShowSoftKeyboard(const String initialText);
 	void HideSoftKeyboard();
 	void SetGamma(int brightness, int contrast);
 private:

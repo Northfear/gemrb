@@ -581,7 +581,7 @@ int SDL20VideoDriver::ProcessEvent(const SDL_Event & event)
 				if (delta >= MIN_GESTURE_DELTA_PIXELS){
 					// if the keyboard is already up interpret this gesture as console pop
 					if( SDL_IsScreenKeyboardShown(window) && !ConsolePopped ) core->PopupConsole();
-					else ShowSoftKeyboard();
+					else ShowSoftKeyboard(L"\0");
 				} else if (delta <= -MIN_GESTURE_DELTA_PIXELS) {
 					HideSoftKeyboard();
 				}
@@ -843,7 +843,7 @@ void SDL20VideoDriver::HideSoftKeyboard()
 /*
  This method is intended for devices with no physical keyboard or with an optional soft keyboard (iOS/Android)
  */
-void SDL20VideoDriver::ShowSoftKeyboard()
+void SDL20VideoDriver::ShowSoftKeyboard(const String initialText)
 {
 	if(core->UseSoftKeyboard){
 		SDL_StartTextInput();

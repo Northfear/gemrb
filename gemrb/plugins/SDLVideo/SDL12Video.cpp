@@ -45,7 +45,7 @@ SDL12VideoDriver::~SDL12VideoDriver(void)
 int SDL12VideoDriver::Init(void)
 {
 #ifdef VITA
-	SDL_PSP2_SetTextureAllocMemblockType(SCE_KERNEL_MEMBLOCK_TYPE_USER_RW_UNCACHE);
+	SDL_VITA_SetTextureAllocMemblockType(SCE_KERNEL_MEMBLOCK_TYPE_USER_RW_UNCACHE);
 #endif
 
 	int ret = SDLVideoDriver::Init();
@@ -138,16 +138,16 @@ int SDL12VideoDriver::CreateDisplay(int w, int h, int b, bool fs, const char* ti
 				vitaDestRect.h = VITA_FULLSCREEN_HEIGHT;
 			}
 
-			SDL_PSP2_SetVideoModeBilinear(core->VitaBilinear);
+			SDL_VITA_SetVideoModeBilinear(core->VitaBilinear);
 		} else {
 			//center game area
 			vitaDestRect.x = (VITA_FULLSCREEN_WIDTH - width) / 2;
 			vitaDestRect.y = (VITA_FULLSCREEN_HEIGHT - height) / 2;
 		}
-		SDL_PSP2_SetVideoModeScaling(vitaDestRect.x, vitaDestRect.y, vitaDestRect.w, vitaDestRect.h);
+		SDL_VITA_SetVideoModeScaling(vitaDestRect.x, vitaDestRect.y, vitaDestRect.w, vitaDestRect.h);
 	}
-	SDL_PSP2_SetVideoModeSync(1);
-	SDL_PSP2_SetFlipWaitRendering(1);
+	SDL_VITA_SetVideoModeSync(1);
+	SDL_VITA_SetWaitGxmFinish(1);
 #endif
 
 	return GEM_OK;
@@ -342,7 +342,7 @@ int SDL12VideoDriver::ProcessEvent(const SDL_Event & event)
 				SDL_JoystickGetButton(gameController, SDL_CONTROLLER_BUTTON_Y) != 0) {
 				core->PopupConsole();
 				if (core->ConsolePopped) {
-					ShowSoftKeyboard();
+					ShowSoftKeyboard(L"\0");
 				} else {
 					HideSoftKeyboard();
 				}
@@ -356,10 +356,30 @@ int SDL12VideoDriver::ProcessEvent(const SDL_Event & event)
 	return GEM_OK;
 }
 
-void SDL12VideoDriver::ShowSoftKeyboard()
+void SDL12VideoDriver::ShowSoftKeyboard(const String initialText)
 {
 #ifdef VITA
 	dPadSoftKeyboard.StartInput();
+
+	const wchar_t *input = initialText.c_str();
+
+	// Count required buffer size (plus one for null-terminator).
+	size_t size = (wcslen(input) + 1) * sizeof(wchar_t);
+	char *buffer = new char[size];
+
+	#ifdef __STDC_LIB_EXT1__
+		// wcstombs_s is only guaranteed to be available if __STDC_LIB_EXT1__ is defined
+		size_t convertedSize;
+		std::wcstombs_s(&convertedSize, buffer, size, input, size);
+	#else
+		std::wcstombs(buffer, input, size);
+	#endif
+
+	/* Use the string stored in "buffer" variable */
+	SDL_VITA_ShowScreenKeyboard(buffer, true);
+
+	// Free allocated memory:
+	delete buffer;
 #else
 	if(core->UseSoftKeyboard){
 		Log(WARNING, "SDL 1.2 Driver", "SDL 1.2 doesn't support a software keyboard");
@@ -371,6 +391,7 @@ void SDL12VideoDriver::HideSoftKeyboard()
 {
 #ifdef VITA
 	dPadSoftKeyboard.StopInput();
+	SDL_VITA_HideScreenKeyboard();
 #else
 	if(core->UseSoftKeyboard){
 		Log(WARNING, "SDL 1.2 Driver", "SDL 1.2 doesn't support a software keyboard");

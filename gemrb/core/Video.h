@@ -126,7 +126,7 @@ public:
 	virtual short GetWidth() = 0;
 	virtual short GetHeight() = 0;
 	/** Displays or hides a virtual (software) keyboard*/
-	virtual void ShowSoftKeyboard() = 0;
+	virtual void ShowSoftKeyboard(const String initialText) = 0;
 	virtual void HideSoftKeyboard() = 0;
 
 	void InitSpriteCover(SpriteCover* sc, int flags);

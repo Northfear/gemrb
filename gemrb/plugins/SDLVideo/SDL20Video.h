@@ -79,7 +79,7 @@ public:
 	bool SetFullscreenMode(bool set);
 	void SetGamma(int brightness, int contrast);
 	bool ToggleGrabInput();
-	void ShowSoftKeyboard();
+	void ShowSoftKeyboard(const String initialText);
 	void HideSoftKeyboard();
 	void MoveMouse(unsigned int x, unsigned int y);
 private:

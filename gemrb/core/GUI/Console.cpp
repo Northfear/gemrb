@@ -193,7 +193,7 @@ void Console::SetFocus(bool focus)
 {
 	Control::SetFocus(focus);
 	if (hasFocus) {
-		core->GetVideoDriver()->ShowSoftKeyboard();
+		core->GetVideoDriver()->ShowSoftKeyboard(Buffer);
 	}
 }
 
