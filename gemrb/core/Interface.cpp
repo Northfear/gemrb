@@ -1331,9 +1331,6 @@ int Interface::Init(InterfaceConfig* config)
 #ifdef VITA
 	CONFIG_INT("VitaBilinear", VitaBilinear = );
 #endif
-#ifdef VITA_CACHE
-	CONFIG_INT("VitaFileCache", VitaFileCache = );
-#endif
 
 #undef CONFIG_INT
 

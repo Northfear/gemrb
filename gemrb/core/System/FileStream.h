@@ -34,11 +34,14 @@
 #include "globals.h"
 
 #ifdef VITA
-#include <psp2/kernel/clib.h>
 #include "../platforms/vita/libc_bridge.h"
-#ifdef VITA_CACHE
-#include "../platforms/vita/VitaCache.h"
-#endif
+
+#define fopen sceLibcBridge_fopen
+#define fclose sceLibcBridge_fclose
+#define fread sceLibcBridge_fread
+#define fwrite sceLibcBridge_fwrite
+#define fseek sceLibcBridge_fseek
+#define ftell sceLibcBridge_ftell
 #endif
 
 namespace GemRB {
@@ -48,201 +51,6 @@ namespace GemRB {
  * Reads and writes data from/to files on a filesystem
  */
 
-#if defined(VITA) && !defined(VITA_CACHE)
-struct File {
-private:
-	FILE* file = nullptr;
-	bool opened = false;
-public:
-	File(FILE* f) : file(f) {}
-	File() = default;
-	File(const File&) = delete;
-	File(File&& f) noexcept {
-		file = f.file;
-		f.file = nullptr;
-	}
-	~File() {
-		if (file) sceLibcBridge_fclose(file);
-	}
-	
-	File& operator=(const File&) = delete;
-	File& operator=(File&& f) noexcept {
-		if (&f != this) {
-			std::swap(file, f.file);
-		}
-		return *this;
-	}
-
-	size_t Length() {
-		sceLibcBridge_fseek(file, 0, SEEK_END);
-		size_t size = sceLibcBridge_ftell(file);
-		sceLibcBridge_fseek(file, 0, SEEK_SET);
-		return size;
-	}
-	bool OpenRO(const char *name) {
-		return (file = sceLibcBridge_fopen(name, "rb"));
-	}
-	bool OpenRW(const char *name) {
-		return (file = sceLibcBridge_fopen(name, "r+b"));
-	}
-	bool OpenNew(const char *name) {
-		return (file = sceLibcBridge_fopen(name, "wb"));
-	}
-	size_t Read(void* ptr, size_t length) {
-		return sceLibcBridge_fread(ptr, 1, length, file);
-	}
-	size_t Write(const void* ptr, size_t length) {
-		return sceLibcBridge_fwrite(ptr, 1, length, file);
-	}
-	bool SeekStart(int offset)
-	{
-		return !sceLibcBridge_fseek(file, offset, SEEK_SET);
-	}
-	bool SeekCurrent(int offset)
-	{
-		return !sceLibcBridge_fseek(file, offset, SEEK_CUR);
-	}
-	bool SeekEnd(int offset)
-	{
-		return !sceLibcBridge_fseek(file, offset, SEEK_END);
-	}
-};
-#elif defined(VITA_CACHE)
-struct File {
-private:
-	FILE *file = nullptr;
-	bool cached = false;
-	size_t cachedOffset = 0;
-	CachedFile *cachedFile = nullptr;
-public:
-	File(FILE* f) : file(f) {}
-	File() = default;
-	File(const File&) = delete;
-	File(File&& f) noexcept {
-		file = f.file;
-		f.file = nullptr;
-	}
-	~File() {
-		if (cached) {
-			VitaCache::ReleaseFile(cachedFile);
-		}
-		if (file) sceLibcBridge_fclose(file); 
-	}
-	
-	File& operator=(const File&) = delete;
-	File& operator=(File&& f) noexcept {
-		if (&f != this) {
-			std::swap(file, f.file);
-		}
-		return *this;
-	}
-
-	size_t Length() {
-		if (cached) {
-			size_t size =  cachedFile->fileSize;
-			cachedOffset = 0;
-			return size;
-		}
-
-		sceLibcBridge_fseek(file, 0, SEEK_END);
-		size_t size = sceLibcBridge_ftell(file);
-		sceLibcBridge_fseek(file, 0, SEEK_SET);
-		return size;
-	}
-	bool OpenRO(const char *name) {
-		file = sceLibcBridge_fopen(name, "rb");
-
-		if (cached) {
-			// Reopened? After writes? Better remove it from cache and read again..
-			VitaCache::ReleaseFile(cachedFile);
-			VitaCache::TryRemoveFile(cachedFile);
-			cached = false;
-		}
-
-		if (file) {
-			std::string stringName = std::string(name);
-			size_t fileSize = Length();
-			cachedFile = VitaCache::GetCachedFileByName(stringName);
-
-			if (cachedFile) {
-				if (cachedFile->fileSize != fileSize) {
-					VitaCache::ReleaseFile(cachedFile);
-					VitaCache::TryRemoveFile(cachedFile);
-					cachedFile = nullptr;
-				}
-			}
-
-			if (!cachedFile) {
-				cachedFile = VitaCache::AddCachedFile(stringName, fileSize);
-				if (cachedFile) {
-					sceLibcBridge_fread(cachedFile->fileContent, 1, fileSize, file);
-				}
-			}
-
-			if (cachedFile) {
-				cached = true;
-				cachedOffset = 0;
-			}
-		}
-
-		return file;
-	}
-	bool OpenRW(const char *name) {
-		if (VitaCache::IsCached(name)) {
-			VitaCache::TryRemoveFile(name);
-		}
-		return (file = sceLibcBridge_fopen(name, "r+b"));
-	}
-	bool OpenNew(const char *name) {
-		if (VitaCache::IsCached(name)) {
-			VitaCache::TryRemoveFile(name);
-		}
-		return (file = sceLibcBridge_fopen(name, "wb"));
-	}
-	size_t Read(void* ptr, size_t length) {
-		if (cached) {
-			if (cachedOffset + length > cachedFile->fileSize)
-				length = cachedFile->fileSize - cachedOffset;
-			sceClibMemcpy(ptr, cachedFile->fileContent + cachedOffset, length);
-			cachedOffset += length;
-			cachedFile->UpdateAccessTime();
-			return length;
-		} else {
-			return sceLibcBridge_fread(ptr, 1, length, file);
-		}
-	}
-	size_t Write(const void* ptr, size_t length) {
-		return sceLibcBridge_fwrite(ptr, 1, length, file);
-	}
-	bool SeekStart(int offset)
-	{
-		if (cached) {
-			cachedOffset = offset;
-			return true;
-		} else {
-			return !sceLibcBridge_fseek(file, offset, SEEK_SET);
-		}
-	}
-	bool SeekCurrent(int offset)
-	{
-		if (cached) {
-			cachedOffset += offset;
-			return true;
-		} else {
-			return !sceLibcBridge_fseek(file, offset, SEEK_CUR);
-		}
-	}
-	bool SeekEnd(int offset)
-	{
-		if (cached) {
-			cachedOffset = cachedFile->fileSize + offset;
-			return true;
-		} else {
-			return !sceLibcBridge_fseek(file, offset, SEEK_END);
-		}
-	}
-};
-#else
 struct File {
 private:
 	FILE* file = nullptr;
@@ -300,7 +108,6 @@ public:
 		return !fseek(file, offset, SEEK_END);
 	}
 };
-#endif
 
 class GEM_EXPORT FileStream : public DataStream {
 private:

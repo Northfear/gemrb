@@ -166,7 +166,7 @@ static dirent* readdir(DIR *dirp)
 	//vitasdk kind of skips current directory entry..
 	if (dirp->is_first) {
 		dirp->is_first = 0;
-		strncpy(de.d_name, ".", 1);
+		strncpy(de.d_name, ".\0", 2);
 	} else {
 		if (sceIoDread(dirp->descriptor, &de) <= 0)
 			return NULL;

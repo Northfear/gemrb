@@ -839,9 +839,6 @@ public:
 #ifdef VITA
 	bool VitaBilinear = true;
 #endif
-#ifdef VITA_CACHE
-	bool VitaFileCache = false;
-#endif
 
 	Variables *plugin_flags;
 	/** The Main program loop */

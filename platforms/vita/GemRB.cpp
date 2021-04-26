@@ -32,10 +32,6 @@
 #include <psp2/apputil.h>
 #include <psp2/fios2.h>
 
-#ifdef VITA_CACHE
-#include "../platforms/vita/VitaCache.h"
-#endif
-
 #define MAX_PATH_LENGTH 256
 #define RAMCACHEBLOCKNUM 32
 #define RAMCACHEBLOCKSIZE 128*1024
@@ -194,10 +190,6 @@ int main(int argc, char* argv[])
 	}
 
 	delete config;
-
-#ifdef VITA_CACHE
-	VitaCache::Init();
-#endif
 
 	core->Main();
 	delete(core);
