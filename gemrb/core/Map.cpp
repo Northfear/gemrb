@@ -704,15 +704,16 @@ void Map::UpdateScripts()
 	// below starts a cutscene, hiding the mouse. - wjp, 20060805
 	if (core->GetGameControl()->GetDialogueFlags() & DF_FREEZE_SCRIPTS) return;
 
-	//Run actor scripts (only for 0 priority)
-	int q=Qcount[PR_SCRIPT];
-
 	Game *game = core->GetGame();
 	bool timestop = game->IsTimestopActive();
 	if (!timestop) {
 		game->SetTimestopOwner(NULL);
 	}
+	
+	ieDword time = game->Ticks; // make sure everything moves at the same time
 
+	//Run actor scripts (only for 0 priority)
+	int q = Qcount[PR_SCRIPT];
 	while (q--) {
 		Actor* actor = queue[PR_SCRIPT][q];
 		//actor just moved away, don't run its script from this side
@@ -758,43 +759,32 @@ void Map::UpdateScripts()
 
 		actor->UpdateActorState(game->GameTime);
 		actor->SetSpeed(false);
-	}
-
-	//clean up effects on dead actors too
-	q=Qcount[PR_DISPLAY];
-	while(q--) {
-		Actor* actor = queue[PR_DISPLAY][q];
-		actor->fxqueue.Cleanup();
-	}
-
-	ieDword time = game->Ticks; // make sure everything moves at the same time
-	// Make actors pathfind if there are others nearby
-	// in order to avoid bumping when possible
-	q = Qcount[PR_SCRIPT];
-	while (q--) {
-		Actor* actor = queue[PR_SCRIPT][q];
-		if (actor->GetRandomBackoff() || !actor->GetStep() || actor->GetSpeed() == 0) {
-			continue;
-		}
-		Actor* nearActor = GetActorInRadius(actor->Pos, GA_NO_DEAD|GA_NO_UNSCHEDULED, actor->GetAnims()->GetCircleSize());
-		if (nearActor && nearActor != actor) {
-			actor->NewPath();
-		}
-	}
-
-	q = Qcount[PR_SCRIPT];
-	while (q--) {
-		Actor* actor = queue[PR_SCRIPT][q];
+		
 		if (actor->GetRandomBackoff()) {
 			actor->DecreaseBackoff();
 			if (!actor->GetRandomBackoff() && actor->GetSpeed() > 0) {
 				actor->NewPath();
 			}
-			continue;
+		} else if (actor->GetStep() && actor->GetSpeed()) {
+			// Make actors pathfind if there are others nearby
+			// in order to avoid bumping when possible
+			Actor* nearActor = GetActorInRadius(actor->Pos, GA_NO_DEAD|GA_NO_UNSCHEDULED, actor->GetAnims()->GetCircleSize());
+			if (nearActor && nearActor != actor) {
+				actor->NewPath();
+			} else {
+				DoStepForActor(actor, time);
+			}
+		} else {
+			DoStepForActor(actor, time);
 		}
-		DoStepForActor(actor, time);
 	}
 
+	//clean up effects on dead actors too
+	q = Qcount[PR_DISPLAY];
+	while(q--) {
+		Actor* actor = queue[PR_DISPLAY][q];
+		actor->fxqueue.Cleanup();
+	}
 
 	//Check if we need to start some door scripts
 	int doorCount = 0;
@@ -1945,6 +1935,16 @@ void Map::PlayAreaSong(int SongType, bool restart, bool hard) const
 	}
 }
 
+// a more thorough, but more expensive version for the cases when it matters
+unsigned int Map::GetBlocked(unsigned int x, unsigned int y, int size) const
+{
+	if (size == -1) {
+		return GetBlocked(x, y);
+	} else {
+		return GetBlockedInRadius(x * 16, y * 12, size);
+	}
+}
+
 unsigned int Map::GetBlockedNavmap(unsigned int x, unsigned int y) const
 {
 	return GetBlocked(x / 16, y / 12);
@@ -2394,7 +2394,7 @@ void Map::dump(bool show_actors) const
 	Log(DEBUG, "Map", buffer);
 }
 
-bool Map::AdjustPositionX(Point &goal, unsigned int radiusx, unsigned int radiusy) const
+bool Map::AdjustPositionX(Point &goal, unsigned int radiusx, unsigned int radiusy, int size) const
 {
 	unsigned int minx = 0;
 	if ((unsigned int) goal.x > radiusx)
@@ -2405,14 +2405,14 @@ bool Map::AdjustPositionX(Point &goal, unsigned int radiusx, unsigned int radius
 
 	for (unsigned int scanx = minx; scanx < maxx; scanx++) {
 		if ((unsigned int) goal.y >= radiusy) {
-			if (GetBlocked(scanx, goal.y - radiusy) & PATH_MAP_PASSABLE) {
+			if (GetBlocked(scanx, goal.y - radiusy, size) & PATH_MAP_PASSABLE) {
 				goal.x = (ieWord) scanx;
 				goal.y = (ieWord) (goal.y - radiusy);
 				return true;
 			}
 		}
 		if (goal.y + radiusy < Height) {
-			if (GetBlocked(scanx, goal.y + radiusy) & PATH_MAP_PASSABLE) {
+			if (GetBlocked(scanx, goal.y + radiusy, size) & PATH_MAP_PASSABLE) {
 				goal.x = (ieWord) scanx;
 				goal.y = (ieWord) (goal.y + radiusy);
 				return true;
@@ -2422,7 +2422,7 @@ bool Map::AdjustPositionX(Point &goal, unsigned int radiusx, unsigned int radius
 	return false;
 }
 
-bool Map::AdjustPositionY(Point &goal, unsigned int radiusx,  unsigned int radiusy) const
+bool Map::AdjustPositionY(Point &goal, unsigned int radiusx,  unsigned int radiusy, int size) const
 {
 	unsigned int miny = 0;
 	if ((unsigned int) goal.y > radiusy)
@@ -2432,14 +2432,14 @@ bool Map::AdjustPositionY(Point &goal, unsigned int radiusx,  unsigned int radiu
 		maxy = Height;
 	for (unsigned int scany = miny; scany < maxy; scany++) {
 		if ((unsigned int) goal.x >= radiusx) {
-			if (GetBlocked(goal.x - radiusx, scany) & PATH_MAP_PASSABLE) {
+			if (GetBlocked(goal.x - radiusx, scany, size) & PATH_MAP_PASSABLE) {
 				goal.x = (ieWord) (goal.x - radiusx);
 				goal.y = (ieWord) scany;
 				return true;
 			}
 		}
 		if (goal.x + radiusx < Width) {
-			if (GetBlocked(goal.x + radiusx, scany) & PATH_MAP_PASSABLE) {
+			if (GetBlocked(goal.x + radiusx, scany, size) & PATH_MAP_PASSABLE) {
 				goal.x = (ieWord) (goal.x + radiusx);
 				goal.y = (ieWord) scany;
 				return true;
@@ -2457,7 +2457,7 @@ void Map::AdjustPositionNavmap(NavmapPoint &goal, unsigned int radiusx, unsigned
 	goal.y = smptGoal.y * 12 + 6;
 }
 
-void Map::AdjustPosition(SearchmapPoint &goal, unsigned int radiusx, unsigned int radiusy) const
+void Map::AdjustPosition(SearchmapPoint &goal, unsigned int radiusx, unsigned int radiusy, int size) const
 {
 	if ((unsigned int) goal.x > Width) {
 		goal.x = (ieWord) Width;
@@ -2469,17 +2469,17 @@ void Map::AdjustPosition(SearchmapPoint &goal, unsigned int radiusx, unsigned in
 	while(radiusx<Width || radiusy<Height) {
 		//lets make it slightly random where the actor will appear
 		if (RAND(0,1)) {
-			if (AdjustPositionX(goal, radiusx, radiusy)) {
+			if (AdjustPositionX(goal, radiusx, radiusy, size)) {
 				return;
 			}
-			if (AdjustPositionY(goal, radiusx, radiusy)) {
+			if (AdjustPositionY(goal, radiusx, radiusy, size)) {
 				return;
 			}
 		} else {
-			if (AdjustPositionY(goal, radiusx, radiusy)) {
+			if (AdjustPositionY(goal, radiusx, radiusy, size)) {
 				return;
 			}
-			if (AdjustPositionX(goal, radiusx, radiusy)) {
+			if (AdjustPositionX(goal, radiusx, radiusy, size)) {
 				return;
 			}
 		}
@@ -2740,6 +2740,11 @@ int Map::CheckRestInterruptsAndPassTime(const Point &pos, int hours, int day)
 		core->GetGame()->AdvanceTime(hours * core->Time.hour_size);
 		return 0;
 	}
+
+	// TODO: it appears there was a limit on how many rest encounters can
+	// be triggered in a row (or area?), since HOFMode should increase it
+	// by 1. It doesn't look like it was stored in the header, so perhaps
+	// it was just a hardcoded limit to make the game more forgiving
 
 	//based on ingame timer
 	int chance=day?RestHeader.DayChance:RestHeader.NightChance;
