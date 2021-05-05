@@ -102,6 +102,7 @@ int SDLVideoDriver::Init(void)
 
 int SDLVideoDriver::SwapBuffers(void)
 {
+#if SDL_VERSION_ATLEAST(1,3,0)
 	unsigned long time;
 	time = GetTicks();
 	if (( time - lastTime ) < 33) {
@@ -111,6 +112,7 @@ int SDLVideoDriver::SwapBuffers(void)
 		time = GetTicks();
 	}
 	lastTime = time;
+#endif
 
 	if (SDL_NumJoysticks() > 0) {
 		ProcessAxisMotion();

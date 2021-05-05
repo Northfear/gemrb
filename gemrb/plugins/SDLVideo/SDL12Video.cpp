@@ -147,7 +147,7 @@ int SDL12VideoDriver::CreateDisplay(int w, int h, int b, bool fs, const char* ti
 		SDL_VITA_SetVideoModeScaling(vitaDestRect.x, vitaDestRect.y, vitaDestRect.w, vitaDestRect.h);
 	}
 	SDL_VITA_SetVideoModeSync(1);
-	SDL_VITA_SetWaitGxmFinish(1);
+	SDL_VITA_SetWaitGxmFinish(0);
 #endif
 
 	return GEM_OK;
@@ -261,6 +261,19 @@ int SDL12VideoDriver::SwapBuffers(void)
 	backBuf = tmp;
 
 	SDL_Flip( disp );
+
+	// delay before Flip can cause overwrite of display surface in the middle of gxm rendering
+	// (which may result in incomplete blit w/o mouse corsor for example)
+	unsigned long time;
+	time = GetTicks();
+	if (( time - lastTime ) < 33) {
+#ifndef NOFPSLIMIT
+		SDL_Delay( 33 - (time - lastTime) );
+#endif
+		time = GetTicks();
+	}
+	lastTime = time;
+
 	return ret;
 }
 
