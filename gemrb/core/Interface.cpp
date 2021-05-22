@@ -197,7 +197,6 @@ Interface::Interface()
 	MouseFeedback = 0;
 	TooltipDelay = 100;
 	IgnoreOriginalINI = 0;
-	Bpp = 32;
 	GUIScriptsPath[0] = 0;
 	GamePath[0] = 0;
 	SavePath[0] = 0;
@@ -269,7 +268,7 @@ Interface::Interface()
 	TLKEncoding.multibyte = false;
 	TLKEncoding.zerospace = false;
 	MagicBit = HasFeature(GF_MAGICBIT);
-	VersionOverride = ItemTypes = SlotTypes = Width = Height = 0;
+	VersionOverride = ItemTypes = SlotTypes = 0;
 	MultipleQuickSaves = false;
 	MaxPartySize = 6;
 	FeedbackLevel = 0;
@@ -1381,7 +1380,7 @@ int Interface::Init(InterfaceConfig* config)
 	FixPath( CachePath, false );
 
 	CONFIG_PATH("GUIScriptsPath", GUIScriptsPath, GemRBPath);
-	CONFIG_PATH("GamePath", GamePath, "");
+	CONFIG_PATH("GamePath", GamePath, ".");
 
 	CONFIG_PATH("GemRBOverridePath", GemRBOverridePath, GemRBPath);
 	CONFIG_PATH("GemRBUnhardcodedPath", GemRBUnhardcodedPath, GemRBPath);
@@ -1610,8 +1609,8 @@ int Interface::Init(InterfaceConfig* config)
 	PathJoin(unhardcodedTypePath, GemRBUnhardcodedPath, "unhardcoded", GameType, nullptr);
 	gamedata->AddSource(unhardcodedTypePath, "GemRB Unhardcoded data", PLUGIN_RESOURCE_CACHEDDIRECTORY, RM_REPLACE_SAME_SOURCE);
 
-	// fix the sample config default resolution for iwd2
-	if (stricmp(GameType, "iwd2") == 0 && Width == 640 && Height == 480) {
+	// fix the sample config default resolution for iwd2 and configless case also for the demo
+	if ((stricmp(GameType, "iwd2") == 0 || stricmp(GameType, "demo") == 0) && Width == 640 && Height == 480) {
 		Width = 800;
 		Height = 600;
 	}
