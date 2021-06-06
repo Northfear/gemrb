@@ -36,10 +36,16 @@ static void SetChannelPosition(int listenerXPos, int listenerYPos, int XPos, int
 {
 	int x = listenerXPos - XPos;
 	int y = listenerYPos - YPos;
-	int16_t angle = atan2(y, x) * 180 / M_PI - 90;
+	int16_t angle = 0;
+
+	// atan2(0,0) is not really a thing
+	if (x != 0 || y != 0) {
+		angle = atan2(y, x) * 180 / M_PI - 90;
+	}
 	if (angle < 0) {
 		angle += 360;
 	}
+
 	uint8_t distance = std::min(static_cast<int32_t>(sqrt(x * x + y * y) / AUDIO_DISTANCE_ROLLOFF_MOD), 255);
 	Mix_SetPosition(channel, angle, distance);
 }
@@ -187,14 +193,14 @@ bool SDLAudio::evictBuffer()
 		CacheEntry *e = (CacheEntry*)p;
 		bool chunkPlaying = false;
 		int numChannels = Mix_AllocateChannels(-1);
-
+		SDL_LockAudio();
 		for (int i = 0; i < numChannels; ++i) {
 			if (Mix_Playing(i) && Mix_GetChunk(i) == e->chunk) {
 				chunkPlaying = true;
 				break;
 			}
 		}
-
+		SDL_UnlockAudio();
 		if (chunkPlaying) {
 			++n;
 		} else {		
@@ -310,6 +316,12 @@ Holder<SoundHandle> SDLAudio::Play(const char* ResRef, unsigned int channel,
 		chan = 0;
 		loop = 0; // Speech ignores GEM_SND_LOOPING
 		core->GetDictionary()->Lookup("Volume Voices", volume);
+
+		//speech has a single channel, if a new speech started
+		//we stop the previous one
+		if (Mix_Playing(0)) {
+			Mix_HaltChannel(0);
+		}
 	} else {
 		core->GetDictionary()->Lookup("Volume SFX", volume);
 	}
@@ -337,6 +349,8 @@ Holder<SoundHandle> SDLAudio::Play(const char* ResRef, unsigned int channel,
 
 	if (!(flags & GEM_SND_RELATIVE)) {
 		SetChannelPosition(listenerPos.x, listenerPos.y, XPos, YPos, chan);
+	} else {
+		Mix_SetPosition(chan, 0, 0);
 	}
 
 	return new SDLAudioSoundHandle(chunk, chan, flags & GEM_SND_RELATIVE);
