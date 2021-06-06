@@ -1376,11 +1376,34 @@ int Interface::Init(InterfaceConfig* config)
 	CONFIG_PATH("GemRBPath", GemRBPath,
 				CopyGemDataPath(GemRBPath, _MAX_PATH));
 
-	CONFIG_PATH("CachePath", CachePath, "./Cache");
+	CONFIG_PATH("CachePath", CachePath, "./Cache2");
 	FixPath( CachePath, false );
+
+	// AppImage doesn't support relative urls at all
+	// we set the path to the data dir to cover unhardcoded and co,
+	// while plugins are statically linked, so it doesn't matter for them
+#ifdef DATA_DIR
+	const char* appDir = getenv("APPDIR");
+	if (appDir) {
+		assert(strnlen(appDir, _MAX_PATH/2) < _MAX_PATH/2);
+		PathJoin(GemRBPath, appDir, DATA_DIR, nullptr);
+	}
+#endif
 
 	CONFIG_PATH("GUIScriptsPath", GUIScriptsPath, GemRBPath);
 	CONFIG_PATH("GamePath", GamePath, ".");
+	// guess a few paths in case this one is bad; two levels deep for the fhs layout
+	char testPath[_MAX_PATH];
+	if (!PathJoin(testPath, GamePath, "chitin.key", nullptr)) {
+		Log(WARNING, "Interface", "Invalid GamePath detected, guessing from the current dir!");
+		if (PathJoin(testPath, "..", "chitin.key", nullptr)) {
+			strlcpy(GamePath, "..", sizeof(GamePath));
+		} else {
+			if (PathJoin(testPath, "..", "..", "chitin.key", nullptr)) {
+				strlcpy(GamePath, "../..", sizeof(GamePath));
+			}
+		}
+	}
 
 	CONFIG_PATH("GemRBOverridePath", GemRBOverridePath, GemRBPath);
 	CONFIG_PATH("GemRBUnhardcodedPath", GemRBUnhardcodedPath, GemRBPath);
@@ -1583,8 +1606,11 @@ int Interface::Init(InterfaceConfig* config)
 		PathJoin(ChitinPath, GamePath, "chitin.key", nullptr);
 		if (!gamedata->AddSource(ChitinPath, "chitin.key", PLUGIN_RESOURCE_KEY)) {
 			Log(FATAL, "Core", "Failed to load \"chitin.key\"");
-			Log(ERROR, "Core", "This means you set the GamePath config variable incorrectly or that the game is running (Windows only).");
-			Log(ERROR, "Core", "It must point to the game directory that holds a readable chitin.key");
+			Log(ERROR, "Core", "This means:\n- you set the GamePath config variable incorrectly,\n\
+- you passed a bad game path to GemRB on the command line,\n\
+- you are not running GemRB from within a game dir,\n\
+- or the game is running (Windows only).");
+			Log(ERROR, "Core", "The path must point to a game directory with a readable chitin.key file.");
 			return GEM_ERROR;
 		}
 	}

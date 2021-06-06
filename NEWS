@@ -1,12 +1,20 @@
-GemRB git (daffe8a2):
+GemRB git (cf90d0fc6):
   New features:
     - 
-    - gameplay content for the demo
-    - SDLAudio caching
-    - PlayStation Vita port
 
   Improved features:
     - 
+    - bugfixes
+
+GemRB v0.8.8 (2021-06-02):
+  New features:
+    - gameplay content for the demo
+    - Heart of Fury support
+    - SDLAudio caching and volume control
+    - PlayStation Vita port
+    - simpler invocation, AppImage packages
+
+  Improved features:
     - lightning bolts, iwd2 stealth, iwd effects, pst levelup
     - scripting, audio backends, logging
     - build system, portability and performance improvements
