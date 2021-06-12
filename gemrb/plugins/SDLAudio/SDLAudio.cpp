@@ -32,7 +32,7 @@
 
 using namespace GemRB;
 
-static void SetChannelPosition(int listenerXPos, int listenerYPos, int XPos, int YPos, int channel)
+static void SetChannelPosition(int listenerXPos, int listenerYPos, int XPos, int YPos, int channel, float rolloff)
 {
 	int x = listenerXPos - XPos;
 	int y = listenerYPos - YPos;
@@ -46,7 +46,7 @@ static void SetChannelPosition(int listenerXPos, int listenerYPos, int XPos, int
 		angle += 360;
 	}
 
-	uint8_t distance = std::min(static_cast<int32_t>(sqrt(x * x + y * y) / AUDIO_DISTANCE_ROLLOFF_MOD), 255);
+	uint8_t distance = std::min(static_cast<int32_t>(sqrt(x * x + y * y) / rolloff), 255);
 	Mix_SetPosition(channel, angle, distance);
 }
 
@@ -58,7 +58,7 @@ void SDLAudioSoundHandle::SetPos(int XPos, int YPos)
 	int listenerXPos = 0;
 	int listenerYPos = 0;
 	core->GetAudioDrv()->GetListenerPos(listenerXPos, listenerYPos);
-	SetChannelPosition(listenerXPos, listenerYPos, XPos, YPos, chunkChannel);
+	SetChannelPosition(listenerXPos, listenerYPos, XPos, YPos, chunkChannel, AUDIO_DISTANCE_ROLLOFF_MOD);
 }
 
 bool SDLAudioSoundHandle::Playing()
@@ -80,7 +80,7 @@ void SDLAudioSoundHandle::StopLooping()
 
 SDLAudio::SDLAudio(void)
 {
-	ambim = new AmbientMgr();
+	ambim = NULL;
 	MusicPlaying = false;
 	curr_buffer_offset = 0;
 	audio_rate = audio_format = audio_channels = 0;
@@ -111,15 +111,16 @@ bool SDLAudio::Init(void)
 		return false;
 	}
 
-	int result = Mix_AllocateChannels(MIXER_CHANNELS);
+	int result = Mix_AllocateChannels(MIXER_CHANNELS + AMBIENT_CHANNELS);
 	if (result < 0) {
 		Log(ERROR, "SDLAudio", "Unable to allocate mixing channels: %s\n", SDL_GetError());
 		return false;
 	}
 
 	Mix_QuerySpec(&audio_rate, (Uint16 *)&audio_format, &audio_channels);
+	Mix_ReserveChannels(AMBIENT_CHANNELS + 1); // for speech and ambients
+	ambim = new AmbientMgrAL;
 
-	Mix_ReserveChannels(1); // for speech
 	return true;
 }
 
@@ -339,21 +340,33 @@ Holder<SoundHandle> SDLAudio::Play(const char* ResRef, unsigned int channel,
 		*length = time_length;
 	}
 
-	Mix_VolumeChunk(chunk, MIX_MAX_VOLUME * (GetVolume(channel) * volume / 10000.0f));
-
+	Mix_VolumeChunk(chunk, MIX_MAX_VOLUME * GetVolume(channel) / 100);
 	chan = Mix_PlayChannel(chan, chunk, loop);
 	if (chan < 0) {
 		print("error playing channel");
 		return Holder<SoundHandle>();
 	}
+	Mix_Volume(chan, MIX_MAX_VOLUME * volume / 100);
 
 	if (!(flags & GEM_SND_RELATIVE)) {
-		SetChannelPosition(listenerPos.x, listenerPos.y, XPos, YPos, chan);
+		SetChannelPosition(listenerPos.x, listenerPos.y, XPos, YPos, chan, AUDIO_DISTANCE_ROLLOFF_MOD);
 	} else {
 		Mix_SetPosition(chan, 0, 0);
 	}
 
 	return new SDLAudioSoundHandle(chunk, chan, flags & GEM_SND_RELATIVE);
+}
+
+bool SDLAudio::Pause()
+{
+	((AmbientMgrAL*) ambim)->deactivate();
+	return true;
+}
+
+bool SDLAudio::Resume()
+{
+	((AmbientMgrAL*) ambim)->activate();
+	return true;
 }
 
 int SDLAudio::CreateStream(Holder<SoundMgr> newMusic)
@@ -389,6 +402,16 @@ void SDLAudio::ResetMusics()
 {
 	MusicPlaying = false;
 	Mix_HookMusic(NULL, NULL);
+}
+
+void SDLAudio::UpdateVolume(unsigned int flags)
+{
+	ieDword volume;
+
+	if (flags & GEM_SND_VOL_AMBIENTS) {
+		core->GetDictionary()->Lookup("Volume Ambients", volume);
+		((AmbientMgrAL*) ambim)->UpdateVolume(volume);
+	}
 }
 
 bool SDLAudio::CanPlay()
@@ -459,17 +482,27 @@ int SDLAudio::SetupNewStream(ieWord x, ieWord y, ieWord z,
 {
 	std::lock_guard<std::recursive_mutex> l(MusicMutex);
 
+	// ambient sounds
 	if (ambientRange) {
-		// TODO: ambient sounds
+		for (int i = 1; i <= AMBIENT_CHANNELS; i++) {
+			if (ambientStreams[i - 1].free) {
+				if (point) {
+					SetChannelPosition(listenerPos.x, listenerPos.y, x, y, i, AMBIENT_DISTANCE_ROLLOFF_MOD);
+				} else {
+					Mix_SetPosition(i, 0, 0);
+				}
+				Mix_Volume(i, MIX_MAX_VOLUME * gain / 100);
+				ambientStreams[i - 1].free = false;
+				ambientStreams[i - 1].streamPos.x = x;
+				ambientStreams[i - 1].streamPos.y = y;
+				ambientStreams[i - 1].point = point;
+				return i;
+			}
+		}
 		return -1;
 	}
 
-	// TODO: maybe don't ignore these
-	(void)x;
-	(void)y;
 	(void)z;
-	(void)gain;
-	(void)point;
 
 	print("SDLAudio allocating stream");
 
@@ -480,16 +513,48 @@ int SDLAudio::SetupNewStream(ieWord x, ieWord y, ieWord z,
 	return 0;
 }
 
-int SDLAudio::QueueAmbient(int, const char*)
+int SDLAudio::QueueAmbient(int stream, const char* sound)
 {
-	// TODO: ambient sounds
-	return -1;
+	if (stream == 0 || stream > AMBIENT_CHANNELS + 1) {
+		return -1;
+	}
+
+	if (sound == 0) {
+		return 0;
+	}
+
+	if (Mix_Playing(stream)) {
+		Mix_HaltChannel(stream);
+	}
+
+	unsigned int time_length;
+	Mix_Chunk *chunk = loadSound(sound, time_length);
+
+	if (chunk == nullptr) {
+		return -1;
+	}
+
+	if (ambientStreams[stream - 1].point) {
+		SetChannelPosition(listenerPos.x, listenerPos.y, ambientStreams[stream - 1].streamPos.x, ambientStreams[stream - 1].streamPos.y, stream, AMBIENT_DISTANCE_ROLLOFF_MOD);
+	}
+	Mix_PlayChannel(stream, chunk, 0);
+
+	return time_length;
 }
 
 bool SDLAudio::ReleaseStream(int stream, bool HardStop)
 {
-	if (stream != 0) {
+	if (stream < 0) {
 		return false;
+	}
+
+	if (stream > 0) {
+		if (ambientStreams[stream - 1].free) {
+			return false;
+		}
+		Mix_HaltChannel(stream);
+		ambientStreams[stream - 1].free = true;
+		return true;
 	}
 
 	print("SDLAudio releasing stream");
@@ -513,9 +578,9 @@ void SDLAudio::FreeBuffers()
 	buffers.clear();
 }
 
-void SDLAudio::SetAmbientStreamVolume(int, int)
+void SDLAudio::SetAmbientStreamVolume(int stream, int volume)
 {
-	// TODO: ambient sounds
+	Mix_Volume(stream, MIX_MAX_VOLUME * volume  / 100);
 }
 
 void SDLAudio::SetAmbientStreamPitch(int, int)

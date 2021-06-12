@@ -22,6 +22,7 @@
 #define SDLAUDIO_H
 
 #include "Audio.h"
+#include "../OpenALAudio/AmbientMgrAL.h"
 #include "LRUCache.h"
 
 #include <mutex>
@@ -29,9 +30,11 @@
 
 #include <SDL_mixer.h>
 
+#define AMBIENT_CHANNELS 8
 #define MIXER_CHANNELS 16
 #define BUFFER_CACHE_SIZE 100
 #define AUDIO_DISTANCE_ROLLOFF_MOD 1.3
+#define AMBIENT_DISTANCE_ROLLOFF_MOD 5
 
 namespace GemRB {
 
@@ -56,6 +59,13 @@ struct BufferedData {
 	unsigned int size;
 };
 
+struct SDLAudioStream {
+	SDLAudioStream() : free(true), point(false), streamPos(0, 0) { }
+	bool free;
+	bool point;
+	Point streamPos;
+};
+
 struct CacheEntry {
 	Mix_Chunk *chunk;
 	unsigned int Length;
@@ -71,13 +81,13 @@ public:
 	int CreateStream(Holder<SoundMgr>);
 	bool Play();
 	bool Stop();
-	bool Pause() { return true; } /*not implemented*/
-	bool Resume() { return true; } /*not implemented*/
+	bool Pause();
+	bool Resume();
 	bool CanPlay();
 	void ResetMusics();
 	void UpdateListenerPos(int XPos, int YPos);
 	void GetListenerPos(int& XPos, int& YPos);
-	void UpdateVolume(unsigned int) {}
+	void UpdateVolume(unsigned int flags);
 
 	int SetupNewStream(ieWord x, ieWord y, ieWord z, ieWord gain, bool point, int ambientRange);
 	int QueueAmbient(int stream, const char* sound);
@@ -110,6 +120,7 @@ private:
 
 	std::recursive_mutex MusicMutex;
 	LRUCache buffercache;
+	SDLAudioStream ambientStreams[AMBIENT_CHANNELS];
 };
 
 }
