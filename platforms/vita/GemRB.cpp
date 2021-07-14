@@ -28,11 +28,12 @@
 #include <psp2/power.h>
 #include <psp2/apputil.h>
 
-#include <Python.h>
+#include <malloc.h>
+#include <python2.7/Python.h>
 #include <SDL.h>
 
 // allocating memory for application on Vita
-int _newlib_heap_size_user = 344 * 1024 * 1024;
+int _newlib_heap_size_user = 330 * 1024 * 1024;
 char *vitaArgv[3];
 char configPath[25];
 
@@ -50,11 +51,11 @@ void VitaSetArguments(int *argc, char **argv[])
 	vitaArgv[0] = (char*)"";
 	// 0x05 probably corresponds to psla event sent from launcher screen of the app in LiveArea
 	if (eventParam.type == 0x05) {
-		char buffer[2048];
-		memset(buffer, 0, 2048);
-		sceAppUtilAppEventParseLiveArea(&eventParam, buffer);
+		SceAppUtilLiveAreaParam appUtilLiveParam;
+		memset(&appUtilLiveParam, 0, sizeof(SceAppUtilLiveAreaParam));
+		sceAppUtilAppEventParseLiveArea(&eventParam, &appUtilLiveParam);
 		vitaArgv[1] = (char*)"-c";
-		sprintf(configPath, "ux0:data/GemRB/%s.cfg", buffer);
+		sprintf(configPath, "ux0:data/GemRB/%s.cfg", appUtilLiveParam.param);
 		vitaArgv[2] = configPath;
 		vitaArgc = 3;
 	}
@@ -96,47 +97,7 @@ int main(int argc, char* argv[])
 		ShutdownLogging();
 		return sceKernelExitProcess(-1);
 	}
-	
-#if SDL_COMPILEDVERSION < SDL_VERSIONNUM(1,3,0)
-	constexpr int32_t VITA_FULLSCREEN_WIDTH = 960;
-	constexpr int32_t VITA_FULLSCREEN_HEIGHT = 544;
-	
-	if (width != VITA_FULLSCREEN_WIDTH || height != VITA_FULLSCREEN_HEIGHT)	{
-		SDL_Rect vitaDestRect;
-		vitaDestRect.x = 0;
-		vitaDestRect.y = 0;
-		vitaDestRect.w = width;
-		vitaDestRect.h = height;
 
-		if (core->GetVideoDriver()->GetFullscreenMode()) {
-			const char* optstr = config->GetValueForKey("VitaKeepAspectRatio");
-			if (optstr && atoi(optstr) > 0) {
-				if ((static_cast<float>(VITA_FULLSCREEN_WIDTH) / VITA_FULLSCREEN_HEIGHT) >= (static_cast<float>(width) / height)) {
-					float scale = static_cast<float>(VITA_FULLSCREEN_HEIGHT) / height;
-					vitaDestRect.w = width * scale;
-					vitaDestRect.h = VITA_FULLSCREEN_HEIGHT;
-					vitaDestRect.x = (VITA_FULLSCREEN_WIDTH - vitaDestRect.w) / 2;
-				} else {
-					float scale = static_cast<float>(VITA_FULLSCREEN_WIDTH) / width;
-					vitaDestRect.w = VITA_FULLSCREEN_WIDTH;
-					vitaDestRect.h = height * scale;
-					vitaDestRect.y = (VITA_FULLSCREEN_HEIGHT - vitaDestRect.h) / 2;
-				}
-			} else {
-				vitaDestRect.w = VITA_FULLSCREEN_WIDTH;
-				vitaDestRect.h = VITA_FULLSCREEN_HEIGHT;
-			}
-			
-			SDL_SetVideoModeBilinear(true);
-		} else {
-			//center game area
-			vitaDestRect.x = (VITA_FULLSCREEN_WIDTH - width) / 2;
-			vitaDestRect.y = (VITA_FULLSCREEN_HEIGHT - height) / 2;
-		}
-
-		SDL_SetVideoModeScaling(vitaDestRect.x, vitaDestRect.y, vitaDestRect.w, vitaDestRect.h);
-	}
-#endif
 	delete config;
 
 	core->Main();

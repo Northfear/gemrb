@@ -1376,9 +1376,9 @@ int Interface::Init(InterfaceConfig* config)
 		}
 	}
 
-	if (!MakeDirectories(CachePath)) {
-		error("Core", "Unable to create cache directory '%s'", CachePath);
-	}
+	//if (!MakeDirectories(CachePath)) {
+	//	error("Core", "Unable to create cache directory '%s'", CachePath);
+	//}
 
 	if ( StupidityDetector( CachePath )) {
 		Log(ERROR, "Core", "Cache path %s doesn't exist, not a folder or contains alien files!", CachePath );

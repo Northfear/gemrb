@@ -93,45 +93,6 @@ int SDL12VideoDriver::CreateSDLDisplay(const char* title)
 		Log(WARNING, "SDL 1.2 Driver", "No Hardware Acceleration available.");
 	}
 
-
-#ifdef VITA
-	if (screenSize.w != VITA_FULLSCREEN_WIDTH || screenSize.h != VITA_FULLSCREEN_HEIGHT)	{
-		SDL_Rect vitaDestRect;
-		vitaDestRect.x = 0;
-		vitaDestRect.y = 0;
-		vitaDestRect.w = screenSize.w;
-		vitaDestRect.h = screenSize.h;
-
-		if (fullscreen) {
-			//resize to fullscreen
-			if (core->VitaKeepAspectRatio) {
-				if ((static_cast<float>(VITA_FULLSCREEN_WIDTH) / VITA_FULLSCREEN_HEIGHT) >= (static_cast<float>(screenSize.w) / screenSize.h)) {
-					float scale = static_cast<float>(VITA_FULLSCREEN_HEIGHT) / screenSize.h;
-					vitaDestRect.w = screenSize.w * scale;
-					vitaDestRect.h = VITA_FULLSCREEN_HEIGHT;
-					vitaDestRect.x = (VITA_FULLSCREEN_WIDTH - vitaDestRect.w) / 2;
-				} else {
-					float scale = static_cast<float>(VITA_FULLSCREEN_WIDTH) / screenSize.w;
-					vitaDestRect.w = VITA_FULLSCREEN_WIDTH;
-					vitaDestRect.h = screenSize.h * scale;
-					vitaDestRect.y = (VITA_FULLSCREEN_HEIGHT - vitaDestRect.h) / 2;
-				}
-			} else {
-				vitaDestRect.w = VITA_FULLSCREEN_WIDTH;
-				vitaDestRect.h = VITA_FULLSCREEN_HEIGHT;
-			}
-			
-			SDL_SetVideoModeBilinear(true);
-		} else {
-			//center game area
-			vitaDestRect.x = (VITA_FULLSCREEN_WIDTH - screenSize.w) / 2;
-			vitaDestRect.y = (VITA_FULLSCREEN_HEIGHT - screenSize.h) / 2;
-		}
-
-		SDL_SetVideoModeScaling(vitaDestRect.x, vitaDestRect.y, vitaDestRect.w, vitaDestRect.h);
-	}
-#endif
-
 	return GEM_OK;
 }
 

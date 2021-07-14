@@ -20,9 +20,9 @@
 
 #include <psp2/kernel/iofilemgr.h>
 
-#define S_IREAD SCE_S_IRUSR
-#define S_IWRITE SCE_S_IWUSR
-#define S_IEXEC SCE_S_IXUSR
+#define S_IREAD 0777
+#define S_IWRITE 0777
+#define S_IEXEC 0777
 
 struct DIR
 {
