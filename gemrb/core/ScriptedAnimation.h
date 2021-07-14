@@ -30,7 +30,6 @@ namespace GemRB {
 class Animation;
 class AnimationFactory;
 class DataStream;
-class Map;
 class Sprite2D;
 
 //scripted animation flags 
@@ -54,7 +53,7 @@ class Sprite2D;
 // start of Colour flags on iesdp (though same field in original bg2)
 // 0x10000 Not light source
 // 0x20000 Light source
-#define IE_VVC_TINT     	0x00030000   //2 bits need to be set for tint
+#define IE_VVC_TINT     	0x00030000   //2 bits need to be set for tint (BLIT_COLOR_MOD | BLIT_ALPHA_MOD)
 // 0x40000 Internal brightness
 #define IE_VVC_GREYSCALE	0x00080000   //timestopped palette
 #define IE_VVC_DARKEN       0x00100000   // unused
@@ -107,14 +106,13 @@ public:
 	//there is only one palette
 	Holder<Palette> palette;
 	ieResRef sounds[3];
-	ieResRef PaletteName;
-	Color Tint;
+	Color Tint = ColorWhite;
 	int Fade;
 	ieDword Transparency;
 	ieDword SequenceFlags;
 	int Dither;
-	//these are signed
-	int XPos, YPos, ZPos;
+	Point Pos; // position of the effect in game coordinates
+	int XOffset, YOffset, ZOffset; // orientation relative to Pos
 	ieDword LightX, LightY, LightZ;
 	Holder<Sprite2D> light;//this is just a round/halftrans sprite, has no animation
 	ieDword FrameRate;
@@ -134,7 +132,8 @@ public:
 	unsigned long starttime;
 public:
 	//draws the next frame of the videocell
-	bool Draw(const Point &Pos, const Color &p_tint, Map *area, bool dither, int orientation, int height);
+	bool UpdateDrawingState(int orientation);
+	void Draw(const Region &vp, Color tint, int height, uint32_t flags) const;
 	Region DrawingRegion() const;
 	//sets phase (0-2)
 	void SetPhase(int arg);
@@ -168,13 +167,13 @@ public:
 	ScriptedAnimation *DetachTwin();
 private:
 	Animation *PrepareAnimation(AnimationFactory *af, unsigned int cycle, unsigned int i, bool loop = false);
-	bool HandlePhase(Holder<Sprite2D> &frame);
+	bool UpdatePhase();
 	void GetPaletteCopy();
 	void IncrementPhase();
 	/* stops any sound playing */
 	void StopSound();
 	/* updates the sound playing */
-	void UpdateSound(const Point &pos);
+	void UpdateSound();
 };
 
 }

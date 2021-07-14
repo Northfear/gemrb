@@ -26,14 +26,9 @@
 #include "SDLSurfaceSprite2D.h"
 #include "SDL12GamepadMappings.h"
 
-#include "SpriteRenderer.inl"
+#include "SDLSpriteRendererRLE.h"
 
 using namespace GemRB;
-
-#ifdef VITA
-constexpr int32_t VITA_FULLSCREEN_WIDTH = 960;
-constexpr int32_t VITA_FULLSCREEN_HEIGHT = 544;
-#endif
 
 SDL12VideoDriver::SDL12VideoDriver(void)
 {
@@ -646,7 +641,7 @@ int SDL12VideoDriver::ProcessEvent(const SDL_Event& event)
 		} else{
 			e = EventMgr::CreateMouseWheelEvent(Point(0, speed));
 		}
-		EvntManager->DispatchEvent(e);
+		EvntManager->DispatchEvent(std::move(e));
 		return GEM_OK;
 	}
 	
@@ -658,7 +653,7 @@ int SDL12VideoDriver::ProcessEvent(const SDL_Event& event)
 			if (isprint(chr) && modstate <= GEM_MOD_SHIFT) {
 				char text[2] = { (char)chr, '\0' };
 				Event e = EventMgr::CreateTextEvent(text);
-				EvntManager->DispatchEvent(e);
+				EvntManager->DispatchEvent(std::move(e));
 				return GEM_OK;
 			}
 		} else if (event.type == SDL_JOYBUTTONDOWN) {
@@ -667,7 +662,7 @@ int SDL12VideoDriver::ProcessEvent(const SDL_Event& event)
 			switch(event.jbutton.button) {
 			case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
 				dPadSoftKeyboard.RemoveCharacter();
-				EvntManager->DispatchEvent(bsp);
+				EvntManager->DispatchEvent(std::move(bsp));
 				return GEM_OK;
 			case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
 				dPadSoftKeyboard.AddCharacter();
@@ -675,18 +670,18 @@ int SDL12VideoDriver::ProcessEvent(const SDL_Event& event)
 				return GEM_OK;
 			case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
 				dPadSoftKeyboard.NextCharacter();
-				EvntManager->DispatchEvent(bsp);
+				EvntManager->DispatchEvent(std::move(bsp));
 				EvntManager->DispatchEvent(dPadSoftKeyboard.GetTextEvent());
 				return GEM_OK;
 			case SDL_CONTROLLER_BUTTON_DPAD_UP:
 				dPadSoftKeyboard.PreviousCharacter();
-				EvntManager->DispatchEvent(bsp);
+				EvntManager->DispatchEvent(std::move(bsp));
 				EvntManager->DispatchEvent(dPadSoftKeyboard.GetTextEvent());
 				return GEM_OK;
 			case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
 			case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
 				dPadSoftKeyboard.ToggleUppercase();
-				EvntManager->DispatchEvent(bsp);
+				EvntManager->DispatchEvent(std::move(bsp));
 				EvntManager->DispatchEvent(dPadSoftKeyboard.GetTextEvent());
 				return GEM_OK;
 			}

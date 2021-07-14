@@ -2251,6 +2251,15 @@ static PyObject* GemRB_View_SetFlags(PyObject* self, PyObject* args)
 	int Operation = OP_SET;
 	PARSE_ARGS( args, "OI|i", &self, &Flags, &Operation );
 
+	// check if we were called by a button, so we can ensure the
+	// Disabled state is preserved — also set by SetState
+	Button* btn = GetView<Button>(self);
+	if (btn && Operation == OP_SET) {
+		bool wasDisabled = btn->Flags() & View::Disabled;
+		bool set = btn->SetFlags(Flags, Operation);
+		if (wasDisabled) btn->SetFlags(View::Disabled, OP_OR);
+		RETURN_BOOL(set);
+	}
 	View* view = GetView<View>(self);
 	ABORT_IF_NULL(view);
 	RETURN_BOOL(view->SetFlags( Flags, Operation ));
@@ -5728,6 +5737,7 @@ static PyObject* GemRB_GetSlotType(PyObject * /*self*/, PyObject* args)
 	PyDict_SetItemString(dict, "Type", DecRef(PyInt_FromLong, (int)core->QuerySlotType(tmp)));
 	PyDict_SetItemString(dict, "ID", DecRef(PyInt_FromLong, (int)core->QuerySlotID(tmp)));
 	PyDict_SetItemString(dict, "Tip", DecRef(PyInt_FromLong, (int)core->QuerySlottip(tmp)));
+	PyDict_SetItemString(dict, "Flags", PyInt_FromLong((int)core->QuerySlotFlags(tmp)));
 	//see if the actor shouldn't have some slots displayed
 	if (!actor || !actor->PCStats) {
 		goto has_slot;
@@ -6510,7 +6520,6 @@ static PyObject* GemRB_Button_SetSpellIcon(PyObject* self, PyObject* args)
 	return ret;
 }
 
-
 static Holder<Sprite2D> GetUsedWeaponIcon(Item *item, int which)
 {
 	ITMExtHeader *ieh = item->GetWeaponHeader(false);
@@ -6518,9 +6527,9 @@ static Holder<Sprite2D> GetUsedWeaponIcon(Item *item, int which)
 		ieh = item->GetWeaponHeader(true);
 	}
 	if (ieh) {
-		return gamedata->GetBAMSprite(ieh->UseIcon, -1, which, true);
+		return gamedata->GetAnySprite(ieh->UseIcon, -1, which);
 	}
-	return gamedata->GetBAMSprite(item->ItemIcon, -1, which, true);
+	return gamedata->GetAnySprite(item->ItemIcon, -1, which);
 }
 
 static void SetItemText(Button* btn, int charges, bool oneisnone)
@@ -6588,12 +6597,12 @@ static PyObject *SetItemIcon(Button* btn, const char *ItemResRef, int Which, int
 	int i;
 	switch (Which) {
 		case 0: case 1:
-			Picture = gamedata->GetBAMSprite(item->ItemIcon, -1, Which, true);
+			Picture = gamedata->GetAnySprite(item->ItemIcon, -1, Which);
 			break;
 		case 2:
 			btn->SetPicture( NULL ); // also calls ClearPictureList
 			for (i=0;i<4;i++) {
-				Picture = gamedata->GetBAMSprite(item->DescriptionIcon, -1, i, true);
+				Picture = gamedata->GetAnySprite(item->DescriptionIcon, -1, i);
 				if (Picture)
 					btn->StackPicture(Picture);
 			}
@@ -6609,7 +6618,7 @@ static PyObject *SetItemIcon(Button* btn, const char *ItemResRef, int Which, int
 				Item* item2 = gamedata->GetItem(Item2ResRef, true);
 				if (item2) {
 					Holder<Sprite2D> Picture2;
-					Picture2 = gamedata->GetBAMSprite(item2->ItemIcon, -1, Which-4, true);
+					Picture2 = gamedata->GetAnySprite(item2->ItemIcon, -1, Which - 4);
 					if (Picture2) btn->StackPicture(Picture2);
 					gamedata->FreeItem( item2, Item2ResRef, false );
 				}
@@ -6620,7 +6629,7 @@ static PyObject *SetItemIcon(Button* btn, const char *ItemResRef, int Which, int
 		default:
 			ITMExtHeader *eh = item->GetExtHeader(Which-6);
 			if (eh) {
-				Picture = gamedata->GetBAMSprite(eh->UseIcon, -1, 0, true);
+				Picture = gamedata->GetAnySprite(eh->UseIcon, -1, 0);
 			}
 			else {
 				Picture = NULL;
@@ -7054,7 +7063,7 @@ static PyObject* GemRB_ChangeContainerItem(PyObject * /*self*/, PyObject* args)
 		}
 	}
 
-	if (Sound[0]) {
+	if (Sound && Sound[0]) {
 		core->GetAudioDrv()->Play(Sound, SFX_CHAN_GUI);
 	}
 	Py_RETURN_NONE;
@@ -9283,7 +9292,6 @@ static CREItem *TryToUnequip(Actor *actor, unsigned int Slot, unsigned int Count
 			return NULL;
 		}
 	}
-	///fixme: make difference between cursed/unmovable
 	if (! actor->inventory.UnEquipItem( Slot, false )) {
 		// Item is currently undroppable/cursed
 		if (si->Flags&IE_INV_ITEM_CURSED) {
@@ -9381,7 +9389,7 @@ static PyObject* GemRB_DragItem(PyObject * /*self*/, PyObject* args)
 		}
 		gamedata->FreeItem(item, si->ItemResRef,0);
 	}
-	if (Sound[0]) {
+	if (Sound && Sound[0]) {
 		core->GetAudioDrv()->Play(Sound, SFX_CHAN_GUI);
 	}
 
@@ -9464,7 +9472,7 @@ static PyObject* GemRB_DropDraggedItem(PyObject * /*self*/, PyObject* args)
 				gamedata->GetItemSound(Sound, item->ItemType, item->AnimationType, IS_DROP);
 			}
 			gamedata->FreeItem(item, si->ItemResRef,0);
-			if (Sound[0]) {
+			if (Sound && Sound[0]) {
 				core->GetAudioDrv()->Play(Sound, SFX_CHAN_GUI);
 			}
 		}
@@ -9601,7 +9609,7 @@ static PyObject* GemRB_DropDraggedItem(PyObject * /*self*/, PyObject* args)
 		displaymsg->DisplayConstantString(STR_INVFULL, DMC_WHITE);
 	}
 
-	if (Sound[0]) {
+	if (Sound && Sound[0]) {
 		core->GetAudioDrv()->Play(Sound, SFX_CHAN_GUI);
 	}
 	return PyInt_FromLong( res );
@@ -13441,15 +13449,29 @@ PyDoc_STRVAR( GemRB_internal__doc,
 
 /** Initialization Routine */
 
+static PyObject* InitializeModule(const char* name, const char* doc, PyMethodDef* methods)
+{
+#if PY_MAJOR_VERSION >= 3
+	struct PyModuleDef moduledef = {
+		PyModuleDef_HEAD_INIT,
+		name,     /* m_name */
+		doc,  /* m_doc */
+		-1,                  /* m_size */
+		methods,    /* m_methods */
+		NULL,                /* m_reload */
+		NULL,                /* m_traverse */
+		NULL,                /* m_clear */
+		NULL,                /* m_free */
+	};
+	
+	return PyModule_Create(&moduledef);
+#else
+	return Py_InitModule3(name, methods, doc);
+#endif
+}
+
 bool GUIScript::Init(void)
 {
-#ifdef VITA
-	//Py_Initialize crashes on Vita otherwise
-	Py_NoSiteFlag = 1;
-	Py_IgnoreEnvironmentFlag = 1;
-	Py_NoUserSiteDirectory = 1;
-#endif
-
 	Py_Initialize();
 	if (!Py_IsInitialized()) {
 		return false;
@@ -13460,12 +13482,12 @@ bool GUIScript::Init(void)
 	pMainDic = PyModule_GetDict( pMainMod );
 	/* pMainDic is a borrowed reference */
 
-	PyObject* pGemRB = Py_InitModule3( "GemRB", GemRBMethods, GemRB__doc );
+	PyObject* pGemRB = InitializeModule("GemRB", GemRB__doc, GemRBMethods);
 	if (!pGemRB) {
 		return false;
 	}
 
-	PyObject* p_GemRB = Py_InitModule3( "_GemRB", GemRBInternalMethods, GemRB_internal__doc );
+	PyObject* p_GemRB = InitializeModule("_GemRB", GemRB_internal__doc, GemRBInternalMethods);
 	if (!p_GemRB) {
 		return false;
 	}

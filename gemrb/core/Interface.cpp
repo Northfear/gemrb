@@ -130,7 +130,7 @@ ItemDragOp::ItemDragOp(CREItem* item)
 : ControlDragOp(&dragDummy), item(item) {
 	Item* i = gamedata->GetItem(item->ItemResRef);
 	assert(i);
-	Holder<Sprite2D> pic = gamedata->GetBAMSprite(i->ItemIcon, -1, 1);
+	Holder<Sprite2D> pic = gamedata->GetAnySprite(i->ItemIcon, -1, 1);
 	if (pic == nullptr) {
 		// use any / the smaller icon if the dragging one is unavailable
 		pic = gamedata->GetBAMSprite(i->ItemIcon, -1, 0);
@@ -151,7 +151,6 @@ Interface::Interface()
 	}
 
 	winmgr = NULL;
-	gamectrl = NULL;
 	projserv = NULL;
 	VideoDriverName = "sdl";
 	AudioDriverName = "openal";
@@ -182,7 +181,6 @@ Interface::Interface()
 #else
 	CaseSensitive = false;
 #endif
-	DrawFPS = false;
 	UseSoftKeyboard = false;
 	KeepCache = false;
 	NumFingInfo = 2;
@@ -416,7 +414,7 @@ Interface::~Interface(void)
 
 GameControl* Interface::StartGameControl()
 {
-	assert(gamectrl == NULL);
+	assert(gamectrl == nullptr);
 
 	gamedata->DelTable(0xffffu); //dropping ALL tables
 	Region screen(0,0, Width, Height);
@@ -558,13 +556,15 @@ void Interface::HandleFlags()
 {
 	//clear events because the context changed
 	EventFlag = EF_CONTROL;
+	
+	if (QuitFlag & (QF_QUITGAME | QF_EXITGAME | QF_LOADGAME | QF_ENTERGAME)) {
+		delete gamectrl;
+		gamectrl = nullptr;
+		winmgr->GetGameWindow()->SetVisible(false);
+	}
 
 	if (QuitFlag&(QF_QUITGAME|QF_EXITGAME) ) {
 		winmgr->DestroyAllWindows();
-		delete gamectrl;
-		gamectrl = NULL;
-		winmgr->GetGameWindow()->SetVisible(false);
-		
 		// when reaching this, quitflag should be 1 or 2
 		// if Exitgame was set, we'll set Start.py too
 		QuitGame (QuitFlag&QF_EXITGAME);
@@ -1069,7 +1069,6 @@ int Interface::LoadSprites()
 		return GEM_ERROR;
 	}
 
-	FogSprites[0] = NULL;
 	FogSprites[1] = anim->GetFrame( 0, 0 );
 	FogSprites[2] = anim->GetFrame( 1, 0 );
 	FogSprites[3] = anim->GetFrame( 2, 0 );
@@ -1077,18 +1076,12 @@ int Interface::LoadSprites()
 	FogSprites[4] = video->MirrorSprite( FogSprites[1], BLIT_MIRRORY, false );
 
 	assert(FogSprites[4]->renderFlags&BLIT_MIRRORY);
-	FogSprites[5] = NULL;
 
 	FogSprites[6] = video->MirrorSprite( FogSprites[3], BLIT_MIRRORY, false );
-
-	FogSprites[7] = NULL;
 
 	FogSprites[8] = video->MirrorSprite( FogSprites[2], BLIT_MIRRORX, false );
 	assert(FogSprites[8]->renderFlags&BLIT_MIRRORX);
 	FogSprites[9] = video->MirrorSprite( FogSprites[3], BLIT_MIRRORX, false );
-
-	FogSprites[10] = NULL;
-	FogSprites[11] = NULL;
 
 	FogSprites[12] = video->MirrorSprite( FogSprites[6], BLIT_MIRRORX, false );
 	assert(FogSprites[12]->renderFlags&BLIT_MIRRORX);
@@ -1101,10 +1094,6 @@ int Interface::LoadSprites()
 	FogSprites[20] = video->MirrorSprite( FogSprites[17], BLIT_MIRRORY, false );
 	assert(FogSprites[20]->renderFlags&BLIT_MIRRORY);
 
-	FogSprites[21] = NULL;
-
-	FogSprites[23] = NULL;
-
 	FogSprites[24] = video->MirrorSprite( FogSprites[18], BLIT_MIRRORX, false );
 	assert(FogSprites[24]->renderFlags&BLIT_MIRRORX);
 
@@ -1113,9 +1102,6 @@ int Interface::LoadSprites()
 	FogSprites[22] = video->MirrorSprite( FogSprites[25], BLIT_MIRRORX|BLIT_MIRRORY, false );
 	assert(FogSprites[22]->renderFlags&BLIT_MIRRORX);
 	assert(FogSprites[22]->renderFlags&BLIT_MIRRORY);
-
-	FogSprites[26] = NULL;
-	FogSprites[27] = NULL;
 
 	FogSprites[28] = video->MirrorSprite( FogSprites[19], BLIT_MIRRORX|BLIT_MIRRORY, false );
 	assert(FogSprites[28]->renderFlags&BLIT_MIRRORX);
@@ -1251,7 +1237,6 @@ int Interface::Init(InterfaceConfig* config)
 	CONFIG_INT("NumFingKboard", NumFingKboard = );
 	CONFIG_INT("NumFingInfo", NumFingInfo = );
 	CONFIG_INT("GamepadPointerSpeed", GamepadPointerSpeed = );
-	CONFIG_INT("VitaKeepAspectRatio", VitaKeepAspectRatio = );
 
 #undef CONFIG_INT
 
@@ -1527,6 +1512,22 @@ int Interface::Init(InterfaceConfig* config)
 			return GEM_ERROR;
 		}
 	}
+	
+	// fix the sample config default resolution for iwd2
+	if (stricmp(GameType, "iwd2") == 0 && Width == 640 && Height == 480) {
+		Width = 800;
+		Height = 600;
+	}
+
+	// SDL2 driver requires the display to be created prior to sprite creation (opengl context)
+	// we also need the display to exist to create sprites using the display format
+	ieDword fullscreen = 0;
+	vars->Lookup("Full Screen", fullscreen);
+	if (video->CreateDisplay(Size(Width, Height), Bpp, fullscreen, GameName) == GEM_ERROR) {
+		Log(FATAL, "Core", "Cannot initialize shaders.");
+		return GEM_ERROR;
+	}
+	video->SetGamma(brightness, contrast);
 
 	Log(MESSAGE, "Core", "Initializing GUI Script Engine...");
 	SetNextScript("Start"); // Start is the first script executed
@@ -1547,22 +1548,6 @@ int Interface::Init(InterfaceConfig* config)
 	char unhardcodedTypePath[_MAX_PATH * 2];
 	PathJoin(unhardcodedTypePath, GemRBUnhardcodedPath, "unhardcoded", GameType, nullptr);
 	gamedata->AddSource(unhardcodedTypePath, "GemRB Unhardcoded data", PLUGIN_RESOURCE_CACHEDDIRECTORY, RM_REPLACE_SAME_SOURCE);
-
-	// fix the sample config default resolution for iwd2
-	if (stricmp(GameType, "iwd2") == 0 && Width == 640 && Height == 480) {
-		Width = 800;
-		Height = 600;
-	}
-
-	// SDL2 driver requires the display to be created prior to sprite creation (opengl context)
-	// we also need the display to exist to create sprites using the display format
-	ieDword fullscreen = 0;
-	vars->Lookup("Full Screen", fullscreen);
-	if (video->CreateDisplay(Size(Width, Height), Bpp, fullscreen, GameName) == GEM_ERROR) {
-		Log(FATAL, "Core", "Cannot initialize shaders.");
-		return GEM_ERROR;
-	}
-	video->SetGamma(brightness, contrast);
 
 	// ask the driver if a touch device is in use
 	EventMgr::TouchInputEnabled = TouchInput < 0 ? video->TouchInputEnabled() : TouchInput;
@@ -2537,8 +2522,7 @@ Actor *Interface::SummonCreature(const ieResRef resource, const ieResRef vvcres,
 			if (vvc) {
 				//This is the final position of the summoned creature
 				//not the original target point
-				vvc->XPos += ab->Pos.x;
-				vvc->YPos += ab->Pos.y;
+				vvc->Pos = ab->Pos;
 				//force vvc to play only once
 				vvc->PlayOnce();
 				map->AddVVCell( new VEFObject(vvc) );
@@ -2889,15 +2873,15 @@ int Interface::PlayMovie(const char* resref)
 			}
 		}
 
-		~IESubtitles() {
+		~IESubtitles() override {
 			delete cachedSub;
 		}
 
-		size_t NextSubtitleFrame() const {
+		size_t NextSubtitleFrame() const override {
 			return nextSubFrame;
 		}
 
-		const String& SubtitleAtFrame(size_t frameNum) const {
+		const String& SubtitleAtFrame(size_t frameNum) const override {
 			// FIXME: we cant go backwards now... we dont need to, but this is ugly
 			if (frameNum >= NextSubtitleFrame()) {
 				FrameMap::const_iterator it;
@@ -4323,9 +4307,8 @@ Holder<Sprite2D> Interface::GetScrollCursorSprite(int frameNum, int spriteNum)
 int Interface::CanMoveItem(const CREItem *item) const
 {
 	//This is an inventory slot, switch to IE_ITEM_* if you use Item
-	if (!HasFeature(GF_NO_DROP_CAN_MOVE) ) {
-		if (item->Flags & IE_INV_ITEM_UNDROPPABLE)
-			return 0;
+	if (item->Flags & IE_INV_ITEM_UNDROPPABLE && !HasFeature(GF_NO_DROP_CAN_MOVE)) {
+		return 0;
 	}
 	//not gold, we allow only one single coin ResRef, this is good
 	//for all of the original games

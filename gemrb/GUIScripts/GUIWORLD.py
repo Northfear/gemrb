@@ -46,13 +46,18 @@ def OpenDialogButton(id):
 	MsgWin = GemRB.GetView("MSGWIN")
 
 	frame = MsgWin.GetFrame()
-	window.SetPos(frame['x'], frame['y'] + frame['h'])
+	offset = 0
+	if GameCheck.IsGemRBDemo ():
+		offset = window.GetFrame()['h']
+	window.SetPos(frame['x'], frame['y'] + frame['h'] - offset)
 
 	# Dialog button shouldnt be in front
 	win = GemRB.GetView("OPTWIN")
-	win.Focus()
+	if win:
+		win.Focus()
 	win = GemRB.GetView("PORTWIN")
-	win.Focus()
+	if win:
+		win.Focus()
 
 	return window
 
@@ -95,7 +100,10 @@ def OpenEndMessageWindow ():
 	Button = ContinueWindow.GetControl (0)
 	Button.SetVisible(True)
 	Button.SetDisabled(False)
-	Button.SetText (9371)
+	EndDLGStrref = 9371
+	if GameCheck.IsGemRBDemo ():
+		EndDLGStrref = 67
+	Button.SetText (EndDLGStrref)
 	Button.SetEvent (IE_GUI_BUTTON_ON_PRESS, CloseContinueWindow)
 	Button.SetFlags (IE_GUI_BUTTON_NO_TOOLTIP, OP_OR)
 	Button.MakeDefault(True)
@@ -105,7 +113,10 @@ def OpenContinueMessageWindow ():
 	Button = ContinueWindow.GetControl (0)
 	Button.SetVisible(True)
 	Button.SetDisabled(False)
-	Button.SetText (9372)
+	ContinueStrref = 9372
+	if GameCheck.IsGemRBDemo ():
+		ContinueStrref = 66
+	Button.SetText (ContinueStrref)
 	Button.SetEvent (IE_GUI_BUTTON_ON_PRESS, CloseContinueWindow)
 	Button.SetFlags (IE_GUI_BUTTON_NO_TOOLTIP, OP_OR)
 	Button.MakeDefault(True)

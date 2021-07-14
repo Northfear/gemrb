@@ -122,7 +122,7 @@ int fx_retreat_from (Scriptable* Owner, Actor* target, Effect* fx)
 	//walks (7) or runs away (all others) from owner
 	target->RunAwayFrom(Owner->Pos, fx->Parameter3, true);
 	if (fx->Parameter2!=7) {
-		target->SetIsRunning(true);
+		target->SetRunFlags(IF_RUNNING);
 	}
 
 	//has a duration
@@ -207,8 +207,7 @@ int fx_play_bam_blended (Scriptable* Owner, Actor* target, Effect* fx)
 	}
 
 	if (fx->Parameter2&2) {
-		sca->XPos+=fx->PosX;
-		sca->YPos+=fx->PosY;
+		sca->Pos = Point(fx->PosX, fx->PosY);
 		area->AddVVCell( new VEFObject(sca));
 	} else {
 		assert(target);
@@ -287,20 +286,20 @@ int fx_play_bam_not_blended (Scriptable* Owner, Actor* target, Effect* fx)
 	}
 	switch (fx->Parameter2&0x30000) {
 	case 0x20000://foreground
-		sca->ZPos+=9999;
-		sca->YPos+=9999;
+		sca->ZOffset += 9999;
+		sca->YOffset += 9999;
 		break;
 	case 0x30000: //both
-		sca->ZPos+=9999;
-		sca->YPos+=9999;
+		sca->ZOffset += 9999;
+		sca->YOffset += 9999;
 		if (sca->twin) {
-			sca->twin->ZPos-=9999;
-			sca->twin->YPos-=9999;
+			sca->twin->ZOffset -= 9999;
+			sca->twin->YOffset -= 9999;
 		}
 		break;
 	default: //background
-		sca->ZPos-=9999;
-		sca->YPos-=9999;
+		sca->ZOffset -= 9999;
+		sca->YOffset -= 9999;
 		break;
 	}
 	if (playonce) {
@@ -324,12 +323,15 @@ int fx_play_bam_not_blended (Scriptable* Owner, Actor* target, Effect* fx)
 			x = tmp&31;
 			y = (tmp>>5)&31;
 		}
+		
+		sca->Pos = Point(fx->PosX, fx->PosY);
+		sca->XOffset -= x;
+		sca->YOffset -= y;
 
-		sca->XPos+=fx->PosX-x;
-		sca->YPos+=fx->PosY+sca->ZPos-y;
 		if (twin) {
-			twin->XPos+=fx->PosX-x;
-			twin->YPos+=fx->PosY+twin->ZPos-y;
+			twin->Pos = Point(fx->PosX, fx->PosY);
+			twin->XOffset -= x;
+			twin->YOffset -= y;
 			area->AddVVCell( new VEFObject(twin) );
 		}
 		area->AddVVCell( new VEFObject(sca) );
@@ -770,15 +772,13 @@ int fx_overlay (Scriptable* Owner, Actor* target, Effect* fx)
 		}
 	}
 
-	ScriptedAnimation *vvc = target->GetVVCCell(&target->vvcOverlays, fx->Resource);
-	if (vvc) {
-		vvc->active = true;
-		vvc = target->GetVVCCell(&target->vvcShields, fx->Resource);
-		if (vvc) {
-			vvc->active = true;
-		}
-	} else {
+	auto range = target->GetVVCCells(fx->Resource);
+	if (range.first == range.second) {
 		return FX_NOT_APPLIED;
+	}
+	
+	for (; range.first != range.second; ++range.first) {
+		range.first->second->active = true;
 	}
 
 	switch(fx->Parameter2) {

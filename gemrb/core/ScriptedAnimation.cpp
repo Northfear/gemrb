@@ -32,6 +32,7 @@
 #include "GameData.h"
 #include "Interface.h"
 #include "Map.h"
+#include "Pixels.h"
 #include "Sprite2D.h"
 #include "Video.h"
 
@@ -77,7 +78,7 @@ void ScriptedAnimation::Init()
 	Transparency = 0;
 	Fade = 0;
 	SequenceFlags = 0;
-	XPos = YPos = ZPos = 0;
+	XOffset = YOffset = ZOffset = 0;
 	FrameRate = ANI_DEFAULT_FRAMERATE;
 	NumOrientations = 0;
 	Orientation = 0;
@@ -85,7 +86,6 @@ void ScriptedAnimation::Init()
 	Dither = 0;
 	Duration = 0xffffffff;
 	justCreated = true;
-	PaletteName[0]=0;
 	twin = NULL;
 	Phase = P_NOTINITED;
 	SoundPhase = P_NOTINITED;
@@ -103,17 +103,14 @@ Animation *ScriptedAnimation::PrepareAnimation(AnimationFactory *af, unsigned in
 {
 	int c = cycle;
 
-	switch (NumOrientations) {
-	case 5:
-		c = SixteenToFive[i];
-		break;
-	case 9:
-		c = SixteenToNine[i];
-		break;
-	default:
+	if (NumOrientations == 16 || OrientationFlags & IE_VVC_FACE_FIXED) {
 		if (af->GetCycleCount() > i) c = i;
-		break;
+	} else if (NumOrientations == 5) {
+		c = SixteenToFive[i];
+	} else if (NumOrientations == 9) {
+		c = SixteenToNine[i];
 	}
+
 	Animation *anim = af->GetCycle(c);
 	if (anim) {
 		if (Transparency & IE_VVC_MIRRORX) {
@@ -141,7 +138,12 @@ void ScriptedAnimation::LoadAnimationFactory(AnimationFactory *af, int gettwin)
 	//special case, PST double animations
 
 	CopyResRef(ResName, af->ResRef);
-	unsigned int cCount = af->GetCycleCount();
+	// some anims like FIREL.BAM in IWD contain empty cycles
+	unsigned int cCount = 0;
+	for (unsigned int i = 0; i < af->GetCycleCount() && af->GetCycleSize(i) > 0; ++i) {
+		++cCount;
+	}
+
 	if (cCount >= MAX_CYCLE_TYPE) {
 		cCount = 1;
 	}
@@ -266,9 +268,9 @@ ScriptedAnimation::ScriptedAnimation(DataStream* stream)
 
 	ieDword tmp;
 	stream->ReadDword( &tmp );
-	XPos = (signed) tmp;
+	XOffset = int(tmp);
 	stream->ReadDword( &tmp );  //this affects visibility
-	YPos = (signed) tmp;
+	YOffset = int(tmp);
 	stream->Seek( 4, GEM_CURRENT_POS ); // (offset) position flags in the original, "use orientation" on IESDP
 	stream->ReadDword( &FrameRate );
 
@@ -281,7 +283,7 @@ ScriptedAnimation::ScriptedAnimation(DataStream* stream)
 	stream->Seek( 8, GEM_CURRENT_POS ); // CResRef m_cNewPaletteRef in the original
 
 	stream->ReadDword( &tmp );  //this doesn't affect visibility
-	ZPos = (signed) tmp;
+	ZOffset = int(tmp);
 
 	stream->ReadDword( &LightX ); // and Lighting effect radius / width / glow
 	stream->ReadDword( &LightY );
@@ -407,7 +409,6 @@ void ScriptedAnimation::PlayOnce()
 void ScriptedAnimation::SetFullPalette(const ieResRef PaletteResRef)
 {
 	palette = gamedata->GetPalette(PaletteResRef);
-	memcpy(PaletteName, PaletteResRef, sizeof(PaletteName) );
 	if (twin) {
 		twin->SetFullPalette(PaletteResRef);
 	}
@@ -497,7 +498,7 @@ void ScriptedAnimation::SetOrientation(int orientation)
 	}
 }
 
-bool ScriptedAnimation::HandlePhase(Holder<Sprite2D> &frame)
+bool ScriptedAnimation::UpdatePhase()
 {
 	Game *game = core->GetGame();
 
@@ -550,11 +551,10 @@ retry:
 	}
 
 	if (game->IsTimestopActive()) {
-		frame = anim->LastFrame();
 		return false;
-	} else {
-		frame = anim->NextFrame();
 	}
+	
+	auto frame = anim->NextFrame();
 
 	//explicit duration
 	if (Phase == P_HOLD && game->GameTime > Duration) {
@@ -589,7 +589,7 @@ void ScriptedAnimation::StopSound()
 	}
 }
 
-void ScriptedAnimation::UpdateSound(const Point &pos)
+void ScriptedAnimation::UpdateSound()
 {
 	if (Delay > 0 || SoundPhase > P_RELEASE) {
 		return;
@@ -601,12 +601,12 @@ void ScriptedAnimation::UpdateSound(const Point &pos)
 		}
 
 		if (SoundPhase <= P_RELEASE) {
-			sound_handle = core->GetAudioDrv()->Play(sounds[SoundPhase], SFX_CHAN_HITS, XPos + pos.x, YPos + pos.y,
+			sound_handle = core->GetAudioDrv()->Play(sounds[SoundPhase], SFX_CHAN_HITS, Pos.x + XOffset, Pos.y + YOffset,
 						   (SoundPhase == P_HOLD && (SequenceFlags & IE_VVC_LOOP)) ? GEM_SND_LOOPING : 0);
 			SoundPhase++;
 		}
 	} else {
-		sound_handle->SetPos(XPos + pos.x, YPos + pos.y);
+		sound_handle->SetPos(Pos.x + XOffset, Pos.y + YOffset);
 	}
 }
 
@@ -619,24 +619,17 @@ void ScriptedAnimation::IncrementPhase()
 	Phase++;
 }
 
-//it is not sure if we need tint at all
-bool ScriptedAnimation::Draw(const Point &Pos, const Color &p_tint, Map *area, bool dither, int orientation, int height)
+bool ScriptedAnimation::UpdateDrawingState(int orientation)
 {
 	if (!(OrientationFlags & IE_VVC_FACE_FIXED)) {
 		SetOrientation(orientation);
 	}
-
-	// not sure
+	
 	if (twin) {
-		twin->Draw(Pos, p_tint, area, dither, -1, height);
+		twin->UpdateDrawingState(orientation);
 	}
-
-	Video *video = core->GetVideoDriver();
-	Game *game = core->GetGame();
-
-	Holder<Sprite2D> frame;
-
-	if (HandlePhase(frame)) {
+	
+	if (UpdatePhase()) {
 		//expired
 		return true;
 	}
@@ -646,63 +639,78 @@ bool ScriptedAnimation::Draw(const Point &Pos, const Color &p_tint, Map *area, b
 		return false;
 	}
 
-	UpdateSound(Pos);
+	UpdateSound();
 	
-	uint32_t flag = BLIT_NO_FLAGS;
-	if (Transparency & IE_VVC_TRANSPARENT) {
-		flag |= BLIT_HALFTRANS;
+	return false;
+}
+
+//it is not sure if we need tint at all
+void ScriptedAnimation::Draw(const Region &vp, Color tint, int height, uint32_t flags) const
+{
+	if (twin) {
+		twin->Draw(vp, tint, height, flags);
+	}
+	
+	//delayed
+	if (justCreated) {
+		return;
 	}
 
-	Color tint = Tint;
+	Video *video = core->GetVideoDriver();
+	
+	flags |= Transparency & (IE_VVC_TRANSPARENT | IE_VVC_SEPIA | IE_VVC_TINT);
 
 	//darken, greyscale, red tint are probably not needed if the global tint works
 	//these are used in the original engine to implement weather/daylight effects
 	//on the other hand
-
-	if ((Transparency & IE_VVC_GREYSCALE || game->IsTimestopActive()) && !(Transparency & IE_VVC_NO_TIMESTOP)) {
-		flag |= BLIT_GREY;
+	
+	if (Transparency & IE_VVC_NO_TIMESTOP) {
+		flags &= ~BLIT_GREY;
+	} else if (Transparency & IE_VVC_GREYSCALE) {
+		flags |= BLIT_GREY;
 	}
 
-	if (Transparency & IE_VVC_SEPIA) {
-		flag |= BLIT_SEPIA;
+	if (flags & (BLIT_COLOR_MOD | BLIT_ALPHA_MOD)) {
+		ShaderTint(Tint, tint); // this tint is expected to already have the global tint applied
 	}
 
-	if ((Transparency & IE_VVC_TINT) == IE_VVC_TINT) {
-		tint = p_tint;
-	}
-
-	ieDword flags = flag;
-	if (Transparency & BLIT_COLOR_MOD) {
-		flags |= BLIT_COLOR_MOD;
-		game->ApplyGlobalTint(tint, flags);
-	}
-
-	int cx = Pos.x + XPos;
-	int cy = Pos.y - ZPos + YPos;
+	int cx = Pos.x - vp.x + XOffset;
+	int cy = Pos.y - vp.y - ZOffset + YOffset;
 	if (SequenceFlags & IE_VVC_HEIGHT) cy -= height;
 
-	if(!(SequenceFlags&IE_VVC_NOCOVER)) {
-		if (dither) {
-			flags |= BLIT_STENCIL_ALPHA;
-		} else if (core->DitherSprites) {
-			flags |= BLIT_STENCIL_BLUE;
-		} else {
-			flags |= BLIT_STENCIL_RED;
-		}
+	if (SequenceFlags & IE_VVC_NOCOVER) {
+		flags &= ~BLIT_STENCIL_MASK;
 	}
 
-	video->BlitGameSpriteWithPalette(frame, palette.get(), cx, cy, flags, tint);
+	Animation *anim = anims[Phase * MAX_ORIENT + Orientation];
+	if (anim)
+		video->BlitGameSpriteWithPalette(anim->CurrentFrame().get(), palette, cx, cy, flags | BLIT_BLENDED, tint);
 
 	if (light) {
-		video->BlitGameSprite(light, cx, cy, flags^flag, tint, NULL);
+		video->BlitGameSprite(light, cx, cy, flags, tint, NULL);
 	}
-	return false;
 }
 
 Region ScriptedAnimation::DrawingRegion() const
 {
+	Region r = (twin) ? twin->DrawingRegion() : Region(Pos, Size());
+
 	Animation* anim = anims[Phase*MAX_ORIENT+Orientation];
-	return (anim) ? anim->animArea : Region();
+	if (anim) {
+		Region animArea = anim->animArea;
+		animArea.x += XOffset;
+		animArea.y += (YOffset - ZOffset);
+		r.ExpandToRegion(animArea);
+	}
+	
+	if (light) {
+		Region lightArea = light->Frame;
+		lightArea.x = XOffset - light->Frame.x;
+		lightArea.y = YOffset - ZOffset - light->Frame.y;
+		r.ExpandToRegion(lightArea);
+	}
+
+	return r;
 }
 
 void ScriptedAnimation::SetEffectOwned(bool flag)
@@ -726,10 +734,7 @@ void ScriptedAnimation::SetBlend()
 
 void ScriptedAnimation::SetFade(ieByte initial, int speed)
 {
-	Tint.r=255;
-	Tint.g=255;
-	Tint.b=255;
-	Tint.a=initial;
+	Tint = Color(255, 255, 255, initial);
 	Fade=speed;
 	Transparency|=BLIT_COLOR_MOD;
 }
@@ -777,8 +782,8 @@ ScriptedAnimation *ScriptedAnimation::DetachTwin()
 	}
 	ScriptedAnimation * ret = twin;
 	//ret->Frame.y+=ret->ZPos+1;
-	if (ret->ZPos>=0) {
-		ret->ZPos=-1;
+	if (ret->ZOffset >= 0) {
+		ret->ZOffset = -1;
 	}
 	twin=NULL;
 	return ret;

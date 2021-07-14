@@ -353,7 +353,7 @@ private:
 	WindowManager* winmgr;
 	Holder<GUIFactory> guifact;
 	Holder<ScriptEngine> guiscript;
-	GameControl* gamectrl;
+	GameControl* gamectrl = nullptr;
 	SaveGameIterator *sgiterator;
 	Variables * vars;
 	Variables * tokens;
@@ -784,7 +784,6 @@ public:
 	char GameName[_MAX_PATH];
 	char GameType[10];
 	int GamepadPointerSpeed = 10;
-	bool VitaKeepAspectRatio = true;
 	char GemRBPath[_MAX_PATH];
 	char PluginsPath[_MAX_PATH];
 	char CachePath[_MAX_PATH];
@@ -797,7 +796,7 @@ public:
 	int Width, Height, Bpp;
 	int IgnoreOriginalINI;
 	bool DitherSprites = true;
-	bool CaseSensitive, DrawFPS;
+	bool CaseSensitive = true, DrawFPS = false;
 	bool UseSoftKeyboard; // TODO: reevaluate the need for this, see comments in StartTextInput
 	unsigned short NumFingScroll, NumFingKboard, NumFingInfo;
 	int MouseFeedback;

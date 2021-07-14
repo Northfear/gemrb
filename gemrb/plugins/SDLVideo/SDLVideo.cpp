@@ -167,7 +167,7 @@ int SDLVideoDriver::ProcessEvent(const SDL_Event & event)
 			key = TranslateKeycode(sym);
 			if (key != 0) {
 				Event e = EvntManager->CreateKeyEvent(key, false, modstate);
-				EvntManager->DispatchEvent(e);
+				EvntManager->DispatchEvent(std::move(e));
 			}
 			break;
 		case SDL_KEYDOWN:
@@ -200,11 +200,11 @@ int SDLVideoDriver::ProcessEvent(const SDL_Event & event)
 #endif
 			}
 
-			EvntManager->DispatchEvent(e);
+			EvntManager->DispatchEvent(std::move(e));
 			break;
 		case SDL_MOUSEMOTION:
 			e = EvntManager->CreateMouseMotionEvent(Point(event.motion.x, event.motion.y), modstate);
-			EvntManager->DispatchEvent(e);
+			EvntManager->DispatchEvent(std::move(e));
 			break;
 		case SDL_MOUSEBUTTONDOWN:
 		case SDL_MOUSEBUTTONUP:
@@ -217,7 +217,7 @@ int SDLVideoDriver::ProcessEvent(const SDL_Event & event)
 					bool down = (event.type == SDL_MOUSEBUTTONDOWN) ? true : false;
 					Point p(event.button.x, event.button.y);
 					e = EvntManager->CreateMouseBtnEvent(p, btn, down, modstate);
-					EvntManager->DispatchEvent(e);
+					EvntManager->DispatchEvent(std::move(e));
 				}
 			}
 			break;
@@ -229,7 +229,7 @@ int SDLVideoDriver::ProcessEvent(const SDL_Event & event)
 				int delta = (xaxis) ? pct * screenSize.w : pct * screenSize.h;
 				InputAxis axis = InputAxis(event.jaxis.axis);
 				e = EvntManager->CreateControllerAxisEvent(axis, delta, pct);
-				EvntManager->DispatchEvent(e);
+				EvntManager->DispatchEvent(std::move(e));
 			}
 			break;
 		case SDL_JOYBUTTONDOWN:
@@ -238,7 +238,7 @@ int SDLVideoDriver::ProcessEvent(const SDL_Event & event)
 				bool down = (event.type == SDL_JOYBUTTONDOWN) ? true : false;
 				EventButton btn = EventButton(event.jbutton.button);
 				e = EvntManager->CreateControllerButtonEvent(btn, down);
-				EvntManager->DispatchEvent(e);
+				EvntManager->DispatchEvent(std::move(e));
 			}
 			break;
 	}
@@ -609,7 +609,7 @@ void SDLVideoDriver::RenderSpriteVersion(const SDLSurfaceSprite2D* spr, uint32_t
 	
 	if (spr->Bpp == 8) {
 		if (tint) {
-			assert(renderflags&BLIT_COLOR_MOD);
+			assert(renderflags & (BLIT_COLOR_MOD | BLIT_ALPHA_MOD));
 			uint64_t tintv = *reinterpret_cast<const uint32_t*>(tint);
 			newVersion |= tintv << 32;
 		}
@@ -628,6 +628,11 @@ void SDLVideoDriver::RenderSpriteVersion(const SDLSurfaceSprite2D* spr, uint32_t
 					assert(tint);
 					ShaderTint(*tint, dstc);
 				}
+				
+				if (renderflags & BLIT_ALPHA_MOD) {
+					assert(tint);
+					dstc.a = tint->a;
+				}
 
 				if (renderflags&BLIT_GREY) {
 					ShaderGreyscale(dstc);
@@ -636,7 +641,7 @@ void SDLVideoDriver::RenderSpriteVersion(const SDLSurfaceSprite2D* spr, uint32_t
 				}
 			}
 		}
-		renderflags &= ~(BLIT_GREY | BLIT_SEPIA | BLIT_COLOR_MOD);
+		renderflags &= ~(BLIT_GREY | BLIT_SEPIA | BLIT_COLOR_MOD | BLIT_ALPHA_MOD);
 	} else if (oldVersion != newVersion) {
 		SDL_Surface* newV = (SDL_Surface*)spr->NewVersion(newVersion);
 		SDL_LockSurface(newV);

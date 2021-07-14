@@ -112,6 +112,10 @@ public:
 	bool operator==(const ResRef& rhs) const {
 		return strnicmp(ref, rhs.CString(), sizeof(ref)-1) == 0;
 	};
+	
+	bool operator==(const char* str) const {
+		return strnicmp(ref, str, sizeof(ref)-1) == 0;
+	};
 };
 
 /**
@@ -123,7 +127,7 @@ protected:
 	DataStream* str;
 public:
 	Resource();
-	virtual ~Resource();
+	~Resource() override;
 	/**
 	 * Reads the resource from the given stream.
 	 *

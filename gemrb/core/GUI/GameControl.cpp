@@ -88,12 +88,10 @@ GameControl::GameControl(const Region& frame)
 	overContainer = NULL;
 	overInfoPoint = NULL;
 	drawPath = NULL;
-	pfs.null();
 	lastCursor = IE_CURSOR_INVALID;
 	moveX = moveY = 0;
 	numScrollCursor = 0;
 	DebugFlags = 0;
-	AIUpdateCounter = 1;
 
 	ieDword tmp = 0;
 	core->GetDictionary()->Lookup("Always Run", tmp);
@@ -245,7 +243,7 @@ Point GameControl::GetFormationPoint(const Point& origin, size_t pos, double ang
 			continue;
 		}
 		
-		if (area->IsVisible(dest, true) == false || (area->GetBlockedNavmap(dest) & PATH_MAP_PASSABLE) == 0) {
+		if (area->IsExplored(dest) == false || (area->GetBlockedNavmap(dest) & PATH_MAP_PASSABLE) == 0) {
 			dest = NextDest();
 			continue;
 		}
@@ -1085,6 +1083,7 @@ bool GameControl::OnKeyRelease(const KeyboardEvent& Key, unsigned short Mod)
 				Log(MESSAGE, "GameControl", "Show lightmap %s", DebugFlags & DEBUG_SHOW_LIGHTMAP ? "ON" : "OFF");
 				break;
 			case '7': //toggles fog of war
+			case '8': // searchmap debugging
 				{
 					constexpr int flagCnt = 4;
 					static uint32_t fogFlags[flagCnt]{
@@ -1094,15 +1093,17 @@ bool GameControl::OnKeyRelease(const KeyboardEvent& Key, unsigned short Mod)
 						DEBUG_SHOW_FOG_UNEXPLORED
 					};
 					static uint32_t flagIdx = 0;
+					
 					DebugFlags &= ~DEBUG_SHOW_FOG_ALL;
+					if (Key.character == '8') {
+						DebugFlags ^= DEBUG_SHOW_SEARCHMAP;
+						flagIdx = (DebugFlags & DEBUG_SHOW_SEARCHMAP) ? 1 : 0;
+						Log(MESSAGE, "GameControl", "Show searchmap %s", DebugFlags & DEBUG_SHOW_SEARCHMAP ? "ON" : "OFF");
+					}
+					
 					DebugFlags |= fogFlags[flagIdx++];
 					flagIdx = flagIdx % flagCnt;
 				}
-				break;
-			case '8': //show searchmap over area, we also clear the fog for debug purposes, but you can manually toggle it back on
-				DebugFlags ^= DEBUG_SHOW_SEARCHMAP;
-				DebugFlags |= DEBUG_SHOW_FOG_ALL;
-				Log(MESSAGE, "GameControl", "Show searchmap %s", DebugFlags & DEBUG_SHOW_SEARCHMAP ? "ON" : "OFF");
 				break;
 		}
 		return true; //return from cheatkeys
@@ -1139,7 +1140,7 @@ String GameControl::TooltipText() const {
 	}
 
 	const Point& gameMousePos = GameMousePos();
-	if (!area->IsVisible(gameMousePos, false)) {
+	if (!area->IsVisible(gameMousePos)) {
 		return View::TooltipText();
 	}
 
@@ -1228,9 +1229,7 @@ int GameControl::GetCursorOverDoor(const Door *overDoor) const
 		if (target_mode == TARGET_MODE_NONE) {
 			// most secret doors are in walls, so default to the blocked cursor to not give them away
 			// iwd ar6010 table/door/puzzle is walkable, secret and undetectable
-			const Game *game = core->GetGame();
-			const Map *area = game->GetCurrentArea();
-			assert(area);
+			const Map *area = overDoor->GetCurrentArea();
 			return area->GetCursor(overDoor->Pos);
 		} else {
 			return lastCursor|IE_CURSOR_GRAY;
@@ -1325,7 +1324,7 @@ bool GameControl::OnMouseOver(const MouseEvent& /*me*/)
 	// let us target party members even if they are invisible
 	lastActor = area->GetActor(gameMousePos, GA_NO_DEAD|GA_NO_UNSCHEDULED);
 	if (lastActor && lastActor->Modified[IE_EA] >= EA_CONTROLLED) {
-		if (!lastActor->ValidTarget(target_types) || !area->IsVisible(gameMousePos, false)) {
+		if (!lastActor->ValidTarget(target_types) || !area->IsVisible(gameMousePos)) {
 			lastActor = NULL;
 		}
 	}
@@ -1693,7 +1692,7 @@ bool GameControl::MoveViewportTo(Point p, bool center, int speed)
 			mwinframe = mta->GetWindow()->Frame();
 		}
 
-		if (frame.h >= mapsize.h) {
+		if (frame.h >= mapsize.h + mwinframe.h + 32) {
 			p.y = (mapsize.h - frame.h)/2;
 			canMove = false;
 		} else if (p.y + frame.h >= mapsize.h + mwinframe.h + 32) {
@@ -2020,8 +2019,7 @@ bool GameControl::HandleActiveRegion(InfoPoint *trap, Actor * actor, const Point
 			//there. Here we have to check on the
 			//reset trap and deactivated flags
 			if (trap->Scripts[0]) {
-				const GameControl *gc = core->GetGameControl();
-				if (!(trap->Flags & TRAP_DEACTIVATED) && !(gc->GetDialogueFlags() & DF_FREEZE_SCRIPTS)) {
+				if (!(trap->Flags & TRAP_DEACTIVATED) && !(GetDialogueFlags() & DF_FREEZE_SCRIPTS)) {
 					trap->AddTrigger(TriggerEntry(trigger_clicked, actor->GetGlobalID()));
 					actor->LastMarked = trap->GetGlobalID();
 					//directly feeding the event, even if there are actions in the queue

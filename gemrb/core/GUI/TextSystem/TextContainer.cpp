@@ -187,6 +187,7 @@ LayoutRegions TextSpan::LayoutForPointInRegion(Point layoutPoint, const Region& 
 						// saves looping again for the known to be useless segment
 						newline = true;
 						lineSegment.w = LINE_REMAINDER;
+						end--;
 					} else {
 						assert(printSize.w);
 						lineSegment.w = printSize.w;
@@ -325,7 +326,15 @@ void ContentContainer::DrawSelf(Region drawFrame, const Region& clip)
 {
 	Video* video = core->GetVideoDriver();
 	if (core->InDebugMode(ID_TEXT)) {
-		video->DrawRect(clip, ColorGreen, true);
+		Region r = clip;
+		video->DrawRect(r, ColorYellow, true);
+		
+		r.x += margin.left;
+		r.y += margin.top;
+		r.w -= margin.left + margin.right;
+		r.h -= margin.bottom + margin.top;
+		
+		video->DrawRect(r, ColorGreen, true);
 	}
 
 	// layout shouldn't be empty unless there is no content anyway...
@@ -873,6 +882,10 @@ bool TextContainer::OnKeyPress(const KeyboardEvent& key, unsigned short /*Mod*/)
 				size_t offset = 0;
 				const Layout* layout = LayoutAtPoint(cursorPoint);
 				LayoutRegions::const_iterator it;
+				if (!layout && key.keycode == GEM_UP) {
+					// end of text workaround for GEM_UP to compute the proper cursor position to move to
+					layout = LayoutAtPoint(Point(cursorPoint.x - 1, cursorPoint.y));
+				}
 				if (layout) {
 					it = FindCursorRegion(*layout);
 					assert(it != layout->regions.end());
@@ -896,7 +909,8 @@ bool TextContainer::OnKeyPress(const KeyboardEvent& key, unsigned short /*Mod*/)
 				
 				if (it != layout->regions.end()) {
 					auto cursorRegion = static_cast<const TextLayout&>(**it);
-					cursorPos = cursorRegion.beginCharIdx + offset;
+					size_t length = cursorRegion.endCharIdx - cursorRegion.beginCharIdx;
+					cursorPos = cursorRegion.beginCharIdx + std::min(offset, length);
 					MarkDirty();
 				}
 			}

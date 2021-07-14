@@ -138,7 +138,7 @@ int SDL20VideoDriver::CreateSDLDisplay(const char* title)
 		Log(FATAL, "SDL 2 GL Driver", "Can't build shader program: %s", msg.c_str());
 		return GEM_ERROR;
 	}
-#if 0
+
 	spriteShader = GLSLProgram::CreateFromFiles("Shaders/SDLTextureV.glsl", "Shaders/GameSpriteF.glsl");
 	if (!spriteShader)
 	{
@@ -146,7 +146,6 @@ int SDL20VideoDriver::CreateSDLDisplay(const char* title)
 		Log(FATAL, "SDL 2 GL Driver", "Can't build shader program: %s", msg.c_str());
 		return GEM_ERROR;
 	}
-#endif
 #endif
 
 	// we set logical size so that platforms where the window can be a diffrent size then requested
@@ -242,14 +241,18 @@ int SDL20VideoDriver::UpdateRenderTarget(const Color* color, uint32_t flags)
 
 void SDL20VideoDriver::BlitSpriteNativeClipped(const SDLTextureSprite2D* spr, const SDL_Rect& src, const SDL_Rect& dst, uint32_t flags, const SDL_Color* tint)
 {
-#if 0 // FIXME: OpenGL shader disabled until we have a chance to fix it/combine it with the stencil shader
-	// OPENGL
-#else
+	uint32_t version = 0;
+#if 1 // !USE_OPENGL_BACKEND
 	// we need to isolate flags that require software rendering to use as the "version"
-	uint32_t version = (BLIT_GREY|BLIT_SEPIA) & flags;
-	// WARNING: software fallback == slow
-	RenderSpriteVersion(spr, version);
+	version = (BLIT_GREY|BLIT_SEPIA) & flags;
 #endif
+	// WARNING: software fallback == slow
+	if (spr->Bpp == 8 && (flags & BLIT_ALPHA_MOD)) {
+		version |= BLIT_ALPHA_MOD;
+		RenderSpriteVersion(spr, version, reinterpret_cast<const Color*>(tint));
+	} else if (version) {
+		RenderSpriteVersion(spr, version);
+	}
 
 	SDL_Texture* tex = spr->GetTexture(renderer);
 	BlitSpriteNativeClipped(tex, src, dst, flags, tint);
@@ -278,16 +281,17 @@ void SDL20VideoDriver::BlitSpriteNativeClipped(SDL_Texture* texSprite, const SDL
 #if SDL_VERSION_ATLEAST(2, 0, 10)
 		SDL_RenderFlush(renderer);
 #endif
+
 		GLint previous_program;
 		glGetIntegerv(GL_CURRENT_PROGRAM, &previous_program);
 
-		GLint channel = 4;
+		GLint channel = 3;
 		if (flags&BLIT_STENCIL_RED) {
-			channel = 1;
+			channel = 0;
 		} else if (flags&BLIT_STENCIL_GREEN) {
-			channel = 2;
+			channel = 1;
 		} else if (flags&BLIT_STENCIL_BLUE) {
-			channel = 3;
+			channel = 2;
 		}
 
 		stencilShader->Use();
@@ -297,7 +301,8 @@ void SDL20VideoDriver::BlitSpriteNativeClipped(SDL_Texture* texSprite, const SDL
 		} else {
 			stencilShader->SetUniformValue("u_dither", 1, 0);
 		}
-
+		
+		stencilShader->SetUniformValue("s_stencil", 1, 0);
 		glActiveTexture(GL_TEXTURE0);
 		SDL_GL_BindTexture(stencilTex, nullptr, nullptr);
 
@@ -345,10 +350,9 @@ void SDL20VideoDriver::BlitVideoBuffer(const VideoBufferPtr& buf, const Point& p
 int SDL20VideoDriver::RenderCopyShaded(SDL_Texture* texture, const SDL_Rect* srcrect,
 									   const SDL_Rect* dstrect, Uint32 flags, const SDL_Color* tint)
 {
-	// FIXME: OpenGL shader disabled until we have a chance to fix it/combine it with the stencil shader
-#if 0
-	GLint activeTex;
-	glGetIntegerv(GL_ACTIVE_TEXTURE, &activeTex);
+#if 0 // USE_OPENGL_BACKEND
+	GLint previous_program;
+	glGetIntegerv(GL_CURRENT_PROGRAM, &previous_program);
 
 	spriteShader->Use();
 	if (flags&BLIT_GREY) {
@@ -359,9 +363,7 @@ int SDL20VideoDriver::RenderCopyShaded(SDL_Texture* texture, const SDL_Rect* src
 		spriteShader->SetUniformValue("u_greyMode", 1, 0);
 	}
 
-	//spriteShader->SetUniformValue("s_texture", 1, 0);
-	glActiveTexture(GL_TEXTURE0);
-	SDL_GL_BindTexture(texture, nullptr, nullptr);
+	spriteShader->SetUniformValue("s_sprite", 1, 0);
 #else
 	// "shaders" were already applied via software (RenderSpriteVersion)
 	// they had to be applied very first so we could create a texture from the software rendering
@@ -396,11 +398,8 @@ int SDL20VideoDriver::RenderCopyShaded(SDL_Texture* texture, const SDL_Rect* src
 	SDL_RendererFlip flipflags = (flags&BLIT_MIRRORY) ? SDL_FLIP_VERTICAL : SDL_FLIP_NONE;
 	flipflags = static_cast<SDL_RendererFlip>(flipflags | ((flags&BLIT_MIRRORX) ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE));
 
-#if 0
+#if 0 // USE_OPENGL_BACKEND
 	int ret = SDL_RenderCopyEx(renderer, texture, srcrect, dstrect, 0.0, NULL, flipflags);
-
-	SDL_GL_UnbindTexture(texture);
-	glActiveTexture(activeTex);
 
 	return ret;
 #else
@@ -584,7 +583,7 @@ int SDL20VideoDriver::ProcessEvent(const SDL_Event & event)
 				int delta = (xaxis) ? pct * screenSize.w : pct * screenSize.h;
 				InputAxis axis = InputAxis(event.caxis.axis);
 				e = EvntManager->CreateControllerAxisEvent(axis, delta, pct);
-				EvntManager->DispatchEvent(e);
+				EvntManager->DispatchEvent(std::move(e));
 			}
 			break;
 		case SDL_CONTROLLERBUTTONDOWN:
@@ -593,7 +592,7 @@ int SDL20VideoDriver::ProcessEvent(const SDL_Event & event)
 				bool down = (event.type == SDL_JOYBUTTONDOWN) ? true : false;
 				EventButton btn = EventButton(event.cbutton.button);
 				e = EvntManager->CreateControllerButtonEvent(btn, down);
-				EvntManager->DispatchEvent(e);
+				EvntManager->DispatchEvent(std::move(e));
 			}
 			break;
 		case SDL_FINGERDOWN: // fallthough
@@ -608,7 +607,7 @@ int SDL20VideoDriver::ProcessEvent(const SDL_Event & event)
 
 				e = EvntManager->CreateTouchEvent(fingers, 1, event.type == SDL_FINGERDOWN, event.tfinger.pressure);
 				e.mod = modstate;
-				EvntManager->DispatchEvent(e);
+				EvntManager->DispatchEvent(std::move(e));
 			}
 			break;
 		// For swipes only. gestures requireing pinch or rotate need to use SDL_MULTIGESTURE or SDL_DOLLARGESTURE
@@ -621,7 +620,7 @@ int SDL20VideoDriver::ProcessEvent(const SDL_Event & event)
 				// TODO: it may make more sense to calculate a pinch/rotation from screen center?
 				e = EvntManager->CreateTouchGesture(touch.touch, 0.0, 0.0);
 				e.mod = modstate;
-				EvntManager->DispatchEvent(e);
+				EvntManager->DispatchEvent(std::move(e));
 			}
 			break;
 		case SDL_DOLLARGESTURE:
@@ -639,7 +638,7 @@ int SDL20VideoDriver::ProcessEvent(const SDL_Event & event)
 				if (e.gesture.deltaX != 0 || e.gesture.deltaY != 0)
 				{
 					e.mod = modstate;
-					EvntManager->DispatchEvent(e);
+					EvntManager->DispatchEvent(std::move(e));
 				}
 			}
 			break;
@@ -664,13 +663,13 @@ int SDL20VideoDriver::ProcessEvent(const SDL_Event & event)
 					e = EvntManager->CreateMouseWheelEvent(Point(event.wheel.x * speed, event.wheel.y * speed));
 				}
 				
-				EvntManager->DispatchEvent(e);
+				EvntManager->DispatchEvent(std::move(e));
 			}
 			break;
 		/* not user input events */
 		case SDL_TEXTINPUT:
 			e = EvntManager->CreateTextEvent(event.text.text);
-			EvntManager->DispatchEvent(e);
+			EvntManager->DispatchEvent(std::move(e));
 			break;
 		/* not user input events */
 
@@ -727,7 +726,7 @@ int SDL20VideoDriver::ProcessEvent(const SDL_Event & event)
 
 					if (pasteValue != NULL) {
 						e = EvntManager->CreateTextEvent(pasteValue);
-						EvntManager->DispatchEvent(e);
+						EvntManager->DispatchEvent(std::move(e));
 						SDL_free(pasteValue);
 					}
 				}
@@ -742,7 +741,7 @@ int SDL20VideoDriver::ProcessEvent(const SDL_Event & event)
 							char* text = SDL_GetClipboardText();
 							e = EvntManager->CreateTextEvent(text);
 							SDL_free(text);
-							EvntManager->DispatchEvent(e);
+							EvntManager->DispatchEvent(std::move(e));
 							return GEM_OK;
 						}
 						break;

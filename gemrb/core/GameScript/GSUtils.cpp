@@ -834,8 +834,7 @@ void CreateVisualEffectCore(Scriptable *Sender, const Point &position, const cha
 {
 	ScriptedAnimation *vvc = GetVVCEffect(effect, iterations);
 	if (vvc) {
-		vvc->XPos +=position.x;
-		vvc->YPos +=position.y;
+		vvc->Pos = position;
 		Map *area = Sender->GetCurrentArea();
 		if (area) {
 			area->AddVVCell(new VEFObject(vvc));
@@ -1469,18 +1468,20 @@ inline bool ismysymbol(const char letter)
 //a symbol from idsname
 static int GetIdsValue(const char *&symbol, const char *idsname)
 {
-	int idsfile=core->LoadSymbol(idsname);
-	Holder<SymbolMgr> valHook = core->GetSymbol(idsfile);
-	if (!valHook) {
-		Log(ERROR, "GameScript", "Missing IDS file %s for symbol %s!", idsname, symbol);
-		return -1;
-	}
 	char *newsymbol;
 	int value=strtol(symbol, &newsymbol, 0);
 	if (symbol!=newsymbol) {
 		symbol=newsymbol;
 		return value;
 	}
+
+	int idsfile = core->LoadSymbol(idsname);
+	Holder<SymbolMgr> valHook = core->GetSymbol(idsfile);
+	if (!valHook) {
+		Log(ERROR, "GameScript", "Missing IDS file %s for symbol %s!", idsname, symbol);
+		return -1;
+	}
+
 	char symbolname[64];
 	int x;
 	for (x=0;ismysymbol(*symbol) && x<(int) sizeof(symbolname)-1;x++) {
@@ -1489,6 +1490,35 @@ static int GetIdsValue(const char *&symbol, const char *idsname)
 	}
 	symbolname[x]=0;
 	return valHook->GetValue(symbolname);
+}
+
+static int ParseIntParam(const char *&src, const char *&str)
+{
+	//going to the variable name
+	while (*str != '*' && *str !=',' && *str != ')' ) {
+		str++;
+	}
+	if (*str=='*') { //there may be an IDS table
+		str++;
+		ieResRef idsTabName;
+		char *cur = idsTabName;
+		const char *end = idsTabName + sizeof(ieResRef) - 1;
+		while (*str != ',' && *str != ')') {
+			// limit IDS file length to 8 characters
+			 if (cur != end) {
+				*cur = *str;
+				++cur;
+			}
+			++str;
+		}
+		*cur = 0;
+
+		if (idsTabName[0]) {
+			return GetIdsValue(src, idsTabName);
+		}
+	}
+	//no IDS table
+	return strtol(src, (char **) &src, 0);
 }
 
 static void ParseIdsTarget(const char *&src, Object *&object)
@@ -1588,7 +1618,6 @@ Action* GenerateActionCore(const char *src, const char *str, unsigned short acti
 		switch (*str) {
 			default:
 				Log(WARNING, "GSUtils", "Invalid type: %s", str);
-				//str++;
 				delete newAction;
 				return NULL;
 
@@ -1603,31 +1632,7 @@ Action* GenerateActionCore(const char *src, const char *str, unsigned short acti
 
 			case 'i': //Integer
 			{
-				//going to the variable name
-				while (*str != '*' && *str !=',' && *str != ')' ) {
-					str++;
-				}
-				int value;
-				if (*str=='*') { //there may be an IDS table
-					str++;
-					ieVariable idsTabName;
-					char* tmp = idsTabName;
-					while (( *str != ',' ) && ( *str != ')' )) {
-						*tmp = *str;
-						tmp++;
-						str++;
-					}
-					*tmp = 0;
-					if (idsTabName[0]) {
-						value = GetIdsValue(src, idsTabName);
-					}
-					else {
-						value = strtol( src, (char **) &src, 0);
-					}
-				}
-				else { //no IDS table
-					value = strtol( src, (char **) &src, 0);
-				}
+				int value = ParseIntParam(src, str);
 				if (!intCount) {
 					newAction->int0Parameter = value;
 				} else if (intCount == 1) {
@@ -1961,7 +1966,6 @@ Trigger *GenerateTriggerCore(const char *src, const char *str, int trIndex, int 
 		switch (*str) {
 			default:
 				Log(ERROR, "GSUtils", "Invalid type: %s", str);
-				//str++;
 				delete newTrigger;
 				return NULL;
 
@@ -1976,31 +1980,7 @@ Trigger *GenerateTriggerCore(const char *src, const char *str, int trIndex, int 
 
 			case 'i': //Integer
 			{
-				//going to the variable name
-				while (*str != '*' && *str !=',' && *str != ')' ) {
-					str++;
-				}
-				int value;
-				if (*str=='*') { //there may be an IDS table
-					str++;
-					ieVariable idsTabName;
-					char* tmp = idsTabName;
-					while (( *str != ',' ) && ( *str != ')' )) {
-						*tmp = *str;
-						tmp++;
-						str++;
-					}
-					*tmp = 0;
-					if (idsTabName[0]) {
-						value = GetIdsValue(src, idsTabName);
-					}
-					else {
-						value = strtol( src, (char **) &src, 0);
-					}
-				}
-				else { //no IDS table
-					value = strtol( src, (char **) &src, 0);
-				}
+				int value = ParseIntParam(src, str);
 				if (!intCount) {
 					newTrigger->int0Parameter = value;
 				} else if (intCount == 1) {

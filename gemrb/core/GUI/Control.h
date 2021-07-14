@@ -113,7 +113,7 @@ public: // Public attributes
 			return static_cast<Control*>(dropView);
 		}
 		
-		~ControlDragOp() {
+		~ControlDragOp() override {
 			Control* src = Source();
 			ActionKey srckey(Action::DragDropSource);
 			
@@ -147,9 +147,9 @@ public: // Public attributes
 
 public:
 	Control(const Region& frame);
-	virtual ~Control();
+	~Control() override;
 
-	virtual bool IsAnimated() const override { return animation && AnimPicture; }
+	bool IsAnimated() const override { return animation && AnimPicture; }
 	bool IsOpaque() const override;
 
 	/** Sets the Text of the current control */
@@ -198,9 +198,7 @@ public:
 	
 protected:
 	using ActionKey = ControlActionResponder::ActionKey;
-	struct ControlActionKey : public ActionKey {
-		uint32_t key;
-		
+	struct ControlActionKey : public ActionKey {		
 		static uint32_t BuildKeyValue(Control::Action type, Event::EventMods mod = 0, EventButton button = 0, short count = 0) {
 			// pack the parameters into the 32 bit key...
 			// we will only support the lower 8 bits for each, however. (more than enough for our purposes)

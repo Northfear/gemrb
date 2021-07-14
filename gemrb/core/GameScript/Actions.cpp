@@ -3602,7 +3602,7 @@ void GameScript::SetLeavePartyDialogFile(Scriptable* Sender, Action* /*parameter
 
 void GameScript::TextScreen(Scriptable* /*Sender*/, Action* parameters)
 {
-	core->SetPause(PAUSE_ON, 1);
+	core->SetPause(PAUSE_ON, PF_QUIET);
 	strnlwrcpy(core->GetGame()->TextScreen, parameters->string0Parameter, sizeof(ieResRef)-1);
 	core->SetEventFlag(EF_TEXTSCREEN);
 }
@@ -7034,7 +7034,7 @@ void GameScript::FloatRebus(Scriptable* Sender, Action* parameters)
 	ScriptedAnimation *vvc = gamedata->GetScriptedAnimation(RebusResRef, 0);
 	if (vvc) {
 		//setting the height
-		vvc->ZPos=actor->size*20;
+		vvc->ZOffset = actor->size * 20;
 		vvc->PlayOnce();
 		//maybe this needs setting up some time
 		vvc->SetDefaultDuration(20);

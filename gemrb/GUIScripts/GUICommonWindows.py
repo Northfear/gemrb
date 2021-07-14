@@ -34,6 +34,7 @@ from GameCheck import MAX_PARTY_SIZE
 import GameCheck
 import GUICommon
 import CommonTables
+import CommonWindow
 import LUCommon
 import InventoryCommon
 if not GameCheck.IsPST():
@@ -242,8 +243,8 @@ def SetupMenuWindowControls (Window, Gears=None, CloseWindowCallback=None):
 		# Pendulum, gears, sun/moon dial (time)
 		# FIXME: display all animations: CPEN, CGEAR, CDIAL
 		if how: # how doesn't have this in the right place
-			pos = ScreenHeight - 71
-			Window.CreateButton (OptionControl['Time'], 6, pos, 64, 71)
+			pos = Window.GetFrame()["h"] - 71
+			Window.CreateButton (OptionControl['Time'], 6-6, pos, 64, 71)
 
 		Button = Window.GetControl (OptionControl['Time'])
 		if bg2:
@@ -1372,12 +1373,11 @@ def TopWindowClosed(window):
 
 	GameWin = GemRB.GetView("GAMEWIN")
 	GameWin.SetDisabled(False)
-	ActWin = GemRB.GetView ("ACTWIN")
-	if ActWin:
-		ActWin.SetVisible (True)
-	if not GameCheck.IsPST(): #PST Doesn't have the message window visible in the main game screen
+
+	if not CommonWindow.IsGameGUIHidden() and GemRB.GetView ("ACTWIN") and not (GameCheck.IsIWD2() or GameCheck.IsPST()):
+		GemRB.GetView ("ACTWIN").SetVisible (True)
 		GemRB.GetView ("MSGWIN").SetVisible(True)
-		
+
 	# TODO: this should be moved to GUIINV and that window should have a custom close handler
 	# that does this stuff then calls this manually
 
@@ -1439,7 +1439,8 @@ def CreateTopWinLoader(id, pack, loader, initer = None, selectionHandler = None,
 			
 			GameWin = GemRB.GetView("GAMEWIN")
 			GameWin.SetDisabled(True)
-			if not (GameCheck.IsIWD2() or GameCheck.IsPST()) and GemRB.GetView ("ACTWIN"):
+			
+			if not CommonWindow.IsGameGUIHidden() and GemRB.GetView ("ACTWIN") and not (GameCheck.IsIWD2() or GameCheck.IsPST()):
 				# hide some windows to declutter higher resolutions and avoid unwanted interaction
 				GemRB.GetView ("ACTWIN").SetVisible(False)
 				GemRB.GetView ("MSGWIN").SetVisible(False)
@@ -1647,7 +1648,7 @@ def OpenPortraitWindow (needcontrols=0, pos=WINDOW_RIGHT|WINDOW_VCENTER):
 		else:
 			if GameCheck.HasHOW():
 				# Rest (how)
-				pos = ScreenHeight - 37
+				pos = Window.GetFrame()["h"] - 37
 				Button = Window.CreateButton (8, 6, pos, 55, 37)
 				Button.SetSprites ("GUIRSBUT", 0,0,1,0,0)
 				Button.SetTooltip (11942)
@@ -1965,7 +1966,7 @@ def SelectionChanged ():
 		PortraitButtons = GetPortraitButtonPairs (PortraitWindow)
 		for i, Button in PortraitButtons.iteritems():
 			Button.EnableBorder (FRAME_PC_SELECTED, i + 1 == sel)
-	import CommonWindow
+
 	CommonWindow.CloseContainerWindow()
 	if SelectionChangeHandler:
 		SelectionChangeHandler ()

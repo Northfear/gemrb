@@ -34,6 +34,8 @@
 #include "Palette.h"
 #include "Polygon.h"
 
+#include <map>
+#include <set>
 #include <vector>
 
 namespace GemRB {
@@ -248,8 +250,6 @@ struct ActionButtonRow2 {
 	ieByte clss;
 };
 
-typedef std::vector< ScriptedAnimation*> vvcVector;
-
 struct WeaponInfo {
 	int slot;
 	ieDword enchantment;
@@ -293,6 +293,10 @@ struct ModalState {
 
 extern void ReleaseMemoryActor();
 GEM_EXPORT void UpdateActorConfig(); //call this from guiscripts when some variable has changed
+
+bool VVCSort(ScriptedAnimation* lhs, ScriptedAnimation* rhs);
+using vvcSet = std::multiset<ScriptedAnimation*, decltype(VVCSort)*>;
+using vvcDict = std::multimap<ResRef, ScriptedAnimation*>;
 
 class GEM_EXPORT Actor : public Movable {
 public:
@@ -356,8 +360,9 @@ public:
 	ieDword TargetDoor;
 
 	EffectQueue fxqueue;
-	mutable vvcVector vvcOverlays; // FIXME: this should not be mutable
-	mutable vvcVector vvcShields; // FIXME: this should not be mutable
+	
+	vvcDict vfxDict;
+	vvcSet vfxQueue = vvcSet(VVCSort); // sorted so we can distinguish effects infront and behind
 	ieDword *projectileImmunity; //classic bitfield
 	Holder<SoundHandle> casting_sound;
 	ieDword roundTime;           //these are timers for attack rounds
@@ -382,6 +387,8 @@ public:
 	 * Otherwise, some actors are badly drawn, like TNO but not Morte.
 	 */
 	ieByte pstColorBytes[10];
+	
+	Region drawingRegion;
 private:
 	//this stuff doesn't get saved
 	CharAnimations* anims;
@@ -439,7 +446,6 @@ private:
 	/** Re/Inits the Modified vector for PCs/NPCs */
 	void RefreshPCStats();
 	void RefreshHP();
-	bool ShouldHibernate() const;
 	bool ShouldDrawCircle() const;
 	bool HasBodyHeat() const;
 	void SetupFistData() const;
@@ -453,6 +459,7 @@ private:
 	const char* GetArmorSound() const;
 
 	bool AdvanceAnimations();
+	void UpdateDrawingRegion();
 	/* applies modal spell etc, if needed */
 	void UpdateModalState(ieDword gameTime);
 
@@ -462,7 +469,7 @@ private:
 
 public:
 	Actor(void);
-	~Actor(void);
+	~Actor(void) override;
 	/** releases memory */
 	static void ReleaseMemory();
 	/** sets game specific parameter (which stat should determine the fist weapon type */
@@ -639,7 +646,7 @@ public:
 	/* actor is in trap */
 	void SetInTrap(ieDword tmp);
 	/* sets some of the internal flags */
-	void SetIsRunning(bool run);
+	void SetRunFlags(ieDword flags);
 	bool IsRunning() const { return InternalFlags & IF_RUNFLAGS; }
 	/* applies the kit abilities, returns false if kit is not applicable */
 	bool ApplyKit(bool remove, ieDword baseclass=0, int diff=0);
@@ -732,7 +739,7 @@ public:
 	bool Schedule(ieDword gametime, bool checkhide) const;
 	void NewPath();
 	/* overridden method, won't walk if dead */
-	void WalkTo(const Point &Des, bool run = false, int MinDistance = 0);
+	void WalkTo(const Point &Des, ieDword flags, int MinDistance = 0);
 	/* resolve string constant (sound will be altered) */
 	void ResolveStringConstant(ieResRef& sound, unsigned int index) const;
 	bool GetSoundFromFile(ieResRef &Sound, unsigned int index) const;
@@ -764,23 +771,20 @@ public:
 	uint8_t GetElevation() const;
 	bool ShouldDrawReticle() const;
 	void DoStep(unsigned int walkScale, ieDword time = 0) override;
-	void Draw(const Region &screen, uint32_t flags) const;
+	void Draw(const Region &screen, Color tint, uint32_t flags) const;
 
 	/* add mobile vvc (spell effects) to actor's list */
 	void AddVVCell(ScriptedAnimation* vvc);
 	/* remove a vvc from the list, graceful means animated removal */
-	void RemoveVVCell(const ieResRef vvcname, bool graceful);
+	void RemoveVVCells(const ResRef& vvcname);
 	/* returns true if actor already has the overlay (slow) */
-	bool HasVVCCell(const ieResRef resource) const;
-	/* returns overlay (or underlay) if actor already has it, faster */
-	ScriptedAnimation *GetVVCCell(const vvcVector *vvcCells, const ieResRef resource) const;
+	bool HasVVCCell(const ResRef& resource) const;
 	/* returns overlay if actor already has it (slow) */
-	ScriptedAnimation *GetVVCCell(const ieResRef resource) const;
+	std::pair<vvcDict::const_iterator, vvcDict::const_iterator>
+	GetVVCCells(const ResRef& resource) const;
 	/* returns the vvc pointer to a hardcoded overlay */
 	/* if it exists (faster than hasvvccell) */
 	ScriptedAnimation *FindOverlay(int index) const;
-	/* draw videocells */
-	void DrawVideocells(const Point& pos, vvcVector &vvcCells, const Color &tint) const;
 
 	void SetLockedPalette(const ieDword *gradients);
 	void UnlockPalette();
@@ -970,6 +974,7 @@ public:
 	bool HasPlayerClass() const;
 	void PlayArmorSound() const;
 	bool ShouldModifyMorale() const;
+	bool HibernateIfAble();
 };
 }
 

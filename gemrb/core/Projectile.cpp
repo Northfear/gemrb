@@ -794,8 +794,7 @@ int Projectile::AddTrail(const ieResRef BAM, const ieByte *pal) const
 	sca->SetOrientation(Orientation);
 	sca->PlayOnce();
 	sca->SetBlend();
-	sca->XPos += Pos.x;
-	sca->YPos += Pos.y;
+	sca->Pos = Pos;
 	area->AddVVCell(vef);
 	return sca->GetSequenceDuration(AI_UPDATE_TIME);
 }
@@ -1516,8 +1515,7 @@ void Projectile::DrawExplosion(const Region& vp)
 				if (ExtFlags&PEF_TRAIL) {
 					vvc->SetOrientation(Orientation);
 				}
-				vvc->XPos+=Pos.x;
-				vvc->YPos+=Pos.y;
+				vvc->Pos = Pos;
 				vvc->PlayOnce();
 				vvc->SetBlend();
 				//quick hack to use the single object envelope
@@ -1528,8 +1526,7 @@ void Projectile::DrawExplosion(const Region& vp)
 			if (!stricmp(Extension->VVCRes, "SPCOMEX1")) {
 				ScriptedAnimation* vvc = gamedata->GetScriptedAnimation("SPCOMEX2", false);
 				if (vvc) {
-					vvc->XPos += Pos.x;
-					vvc->YPos += Pos.y;
+					vvc->Pos = Pos;
 					vvc->PlayOnce();
 					vvc->SetBlend();
 					area->AddVVCell(new VEFObject(vvc));
@@ -1938,6 +1935,10 @@ void Projectile::Draw(Holder<Sprite2D> spr, const Point& p,
 {
 	Video *video = core->GetVideoDriver();
 	PaletteHolder pal = (spr->Bpp == 8) ? palette : nullptr;
+	if (flags & BLIT_COLOR_MOD) {
+		// FIXME: this may not apply universally
+		flags |= BLIT_ALPHA_MOD;
+	}
 	video->BlitGameSpriteWithPalette(spr, pal, p.x, p.y, flags|BLIT_BLENDED, tint, NULL);
 }
 

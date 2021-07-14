@@ -76,7 +76,7 @@ void MapControl::DrawFog(const Region& rgn) const
 		for (p.x = 0; p.x < rgn.w; ++p.x) {
 			gameP.x = p.x * double(mapsize.w) / mosRgn.w;
 			
-			bool visible = MyMap->IsVisible( gameP, true );
+			bool visible = MyMap->IsExplored(gameP);
 			if (!visible) {
 				points.push_back(p + rgn.Origin());
 			}
@@ -143,7 +143,7 @@ Region MapControl::GetViewport() const
 {
 	GameControl* gc = core->GetGameControl();
 	Region vp = gc->Viewport();
-	const Size mapsize = MyMap->GetSize();
+	const Size& mapsize = MyMap->GetSize();
 
 	vp.x *= double(mosRgn.w) / mapsize.w;
 	vp.y *= double(mosRgn.h) / mapsize.h;
@@ -195,7 +195,7 @@ void MapControl::DrawSelf(Region rgn, const Region& /*clip*/)
 			
 			// Skip unexplored map notes unless they are player added
 			// FIXME: PST should include user notes regardless (!mn.readonly)
-			bool visible = MyMap->IsVisible( mn.Pos, true );
+			bool visible = MyMap->IsExplored(mn.Pos);
 			if (!visible)
 				continue;
 

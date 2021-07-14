@@ -327,7 +327,7 @@ public:
 	void BlendAnimation();
 	bool Schedule(ieDword gametime) const;
 	Region DrawingRegion() const;
-	void Draw(const Region &screen, Map *area, uint32_t flags);
+	void Draw(const Region &screen, Color tint, uint32_t flags) const;
 	int GetHeight() const;
 private:
 	Animation *GetAnimationPiece(AnimationFactory *af, int animCycle);
@@ -420,7 +420,7 @@ private:
 
 public:
 	Map(void);
-	~Map(void);
+	~Map(void) override;
 	static void ReleaseMemory();
 	static void NormalizeDeltas(double &dx, double &dy, const double &factor = 1);
 
@@ -554,7 +554,7 @@ public:
 	int GetExploredMapSize() const;
 	void FillExplored(bool explored);
 	/* set one fog tile as visible. x, y are tile coordinates */
-	void ExploreTile(const Point &Tile);
+	void ExploreTile(const Point&);
 	/* explore map from given point in map coordinates */
 	void ExploreMapChunk(const Point &Pos, int range, int los);
 	/* block or unblock searchmap with value */
@@ -581,8 +581,8 @@ public:
 	/* Finds the path which leads to near d */
 	PathNode* FindPath(const Point &s, const Point &d, unsigned int size, unsigned int minDistance = 0, int flags = PF_SIGHT, const Actor *caller = NULL) const;
 
-	/* returns false if point isn't visible on visibility/explored map */
-	bool IsVisible(const Point &s, int explored) const;
+	bool IsVisible(const Point &p) const;
+	bool IsExplored(const Point &p) const;
 	bool IsVisibleLOS(const Point &s, const Point &d, const Actor *caller = NULL) const;
 	bool IsWalkableTo(const Point &s, const Point &d, bool actorsAreBlocking, const Actor *caller) const;
 
@@ -653,11 +653,13 @@ private:
 	uint32_t SetDrawingStencilForScriptable(const Scriptable*, const Region& viewPort);
 	uint32_t SetDrawingStencilForAreaAnimation(AreaAnimation*, const Region& viewPort);
 	
-	void DrawPile(const Region& screen, Container* c, bool highlight);
 	void DrawSearchMap(const Region &vp) const;
 	void DrawPortal(InfoPoint *ip, int enable);
 	void DrawHighlightables(const Region& viewport);
 	void DrawFogOfWar(ieByte* explored_mask, ieByte* visible_mask, const Region& viewport);
+	Size FogMapSize() const;
+	bool FogTileUncovered(const Point &p, uint8_t*) const;
+	Point ConvertPointToFog(const Point &p) const;
 	
 	void GenerateQueues();
 	void SortQueues();

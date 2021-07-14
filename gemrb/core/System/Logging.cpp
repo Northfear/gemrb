@@ -21,6 +21,8 @@
 #include "System/Logger.h"
 #include "System/StringBuffer.h"
 
+#include "Interface.h"
+
 #if defined(__sgi)
 #  include <stdarg.h>
 #else
@@ -31,6 +33,7 @@
 namespace GemRB {
 
 static std::vector<Logger*> theLogger;
+static bool skipLogging = true;
 
 void ShutdownLogging()
 {
@@ -40,15 +43,21 @@ void ShutdownLogging()
 	theLogger.clear();
 }
 
-void InitializeLogging()
+void InitializeLogging(InterfaceConfig* config)
 {
-	AddLogger(createDefaultLogger());
+	const char* loggingOpt = config->GetValueForKey("Logging");
+	if (!loggingOpt || atoi(loggingOpt) > 0) {
+		skipLogging = false;
+		AddLogger(createDefaultLogger());
+	}
 }
 
 void AddLogger(Logger* logger)
 {
-	if (logger)
-		theLogger.push_back(logger);
+	// check if logging was disabled in settings first
+	if (skipLogging) return;
+
+	if (logger) theLogger.push_back(logger);
 }
 
 void RemoveLogger(Logger* logger)
